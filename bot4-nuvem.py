@@ -31,13 +31,17 @@ mensagem_ranking = None
 # Canal de destino para o ranking
 canal_ranking_id = 1246991184593948764  # ID do canal ranking-tunning
 
+# Caminho para o arquivo de relatórios
+relatorios_path = 'relatorios.json'
+
 # Carregar dados de relatórios
 relatorios = {}
-try:
-    with open(relatorios_path, 'r') as f:
-        relatorios = json.load(f)
-except FileNotFoundError:
-    pass  # Se o arquivo não existir, o dicionário já está vazio
+if os.path.exists(relatorios_path):
+    try:
+        with open(relatorios_path, 'r') as f:
+            relatorios = json.load(f)
+    except FileNotFoundError:
+        pass  # Se o arquivo não existir, o dicionário já está vazio
 
 @bot.event
 async def on_ready():
