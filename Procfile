@@ -1,0 +1,1 @@
+worker: python bot4-nuvem.py
