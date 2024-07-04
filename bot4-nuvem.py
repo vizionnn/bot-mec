@@ -32,6 +32,9 @@ mensagem_ranking = None
 # Defina o fuso horário
 timezone = pytz.timezone('America/Sao_Paulo')
 
+# Pegue a hora atual no fuso horário especificado
+current_time = datetime.now(timezone).strftime("%H:%M:%S")
+
 # Canal de destino para o ranking
 canal_ranking_id = 1246991184593948764  # ID do canal ranking-tunning
 
