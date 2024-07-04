@@ -200,6 +200,28 @@ async def salvar_dados():
     with open(relatorios_path, 'w') as f:
         json.dump(relatorios, f)
 
+# Evento para registrar saídas de membros
+@bot.event
+async def on_member_remove(member):
+    guild = member.guild
+    channel_id = 1235035965391765566  # Substitua pelo ID do seu canal
+
+    embed = discord.Embed(title="Um membro saiu!", color=discord.Color.red())
+    embed.set_thumbnail(url=member.display_avatar.url)
+
+    embed.add_field(name="DISCORD:", value=member.mention, inline=False)
+    embed.add_field(name="ID DISCORD:", value=member.id, inline=False)
+    embed.add_field(name="Nome:", value=member.name, inline=False)
+
+    roles = ", ".join([role.name for role in member.roles if role.name != '@everyone'])
+    embed.add_field(name="Cargos Antes da Saída:", value=roles, inline=False)
+
+    embed.set_footer(text=f"{member.guild.name}")
+
+    channel = guild.get_channel(channel_id)
+    if channel:
+        await channel.send(embed=embed)
+
 # Inicializar o bot com o token do arquivo .env
 token = os.getenv("DISCORD_TOKEN")
 bot.run(token)
