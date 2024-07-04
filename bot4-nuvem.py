@@ -30,10 +30,7 @@ data_fim = datetime(2024, 8, 1, tzinfo=timezone.utc)     # Define a data de fim 
 mensagem_ranking = None
 
 # Defina o fuso horário
-timezone = pytz.timezone('America/Sao_Paulo')
-
-# Pegue a hora atual no fuso horário especificado
-current_time = datetime.now(timezone).strftime("%H:%M:%S")
+timezone_brasil = pytz.timezone('America/Sao_Paulo')
 
 # Canal de destino para o ranking
 canal_ranking_id = 1246991184593948764  # ID do canal ranking-tunning
@@ -132,6 +129,9 @@ async def exibir_ranking():
         total_relatorios = relatorios.get(membro.id, 0)  # Obter o total de relatórios do membro
         ranking_str += f"{posicao} - {membro.mention}: {total_relatorios} relatórios\n"
 
+    # Obter o horário atual no fuso horário de São Paulo
+    current_time = datetime.now(timezone_brasil).strftime('%H:%M:%S')
+
     # Criar o embed do ranking
     embed = discord.Embed(title="👑 Ranking de Relatórios de Tunning", description=ranking_str, color=0xffa500)
     embed.set_thumbnail(url=channel.guild.icon.url)
@@ -151,8 +151,8 @@ async def exibir_ranking():
 @bot.event
 async def on_message(message):
     if message.channel.id == 1235035965945413649:  # Canal #relat-tunning
-        # Converter a data da mensagem para offset-aware (UTC) e ajustar para o fuso horário de Recife (-03:00)
-        message_created_at_aware = message.created_at.replace(tzinfo=timezone.utc) - timedelta(hours=3)
+        # Converter a data da mensagem para offset-aware (UTC) e ajustar para o fuso horário de São Paulo
+        message_created_at_aware = message.created_at.replace(tzinfo=timezone.utc).astimezone(timezone_brasil)
         if data_inicio <= message_created_at_aware < data_fim:
             await processar_relatorio(message)
 
@@ -185,41 +185,21 @@ async def processar_relatorio_remocao(message):
             if str(user_id) == membro.display_name.split()[-1]:  # Verifica se o nome de exibição termina com o ID
                 if any(cargo.id in cargos_desejados for cargo in membro.roles):
                     relatorios[membro.id] = relatorios.get(membro.id, 0) - 1
-                    if relatorios[membro.id] <= 0:
-                        del relatorios[membro.id]  # Remove o membro do dicionário se o total for zero ou negativo
-                    print(f"Relatório removido: {membro.display_name} agora tem {relatorios.get(membro.id, 0)} relatórios")
+                    if relatorios[membro.id] < 0:
+                        relatorios[membro.id] = 0  # Garante que a contagem não seja negativa
+                    print(f"Relatório removido: {membro.display_name} agora tem {relatorios[membro.id]} relatórios")
                 break
+        else:
+            print(f"Erro: ID {user_id} não encontrado na lista de membros.")  # Mensagem de erro para ID não encontrado
 
-    await exibir_ranking()  # Atualiza o ranking após a remoção
+    await exibir_ranking()  # Atualiza o ranking imediatamente
 
-# Salvar os dados de relatórios periodicamente
-@tasks.loop(minutes=5)
+# Tarefa para salvar dados periodicamente
+@tasks.loop(minutes=10)  # Ajuste o intervalo conforme necessário
 async def salvar_dados():
-    global relatorios
     with open(relatorios_path, 'w') as f:
         json.dump(relatorios, f)
-    print("Dados de relatórios salvos.")
 
-# Evento para registrar saídas de membros
-@bot.event
-async def on_member_remove(member):
-    guild = member.guild
-    channel_id = 1235035965391765566  # Substitua pelo ID do seu canal
-
-    embed = discord.Embed(title="Um membro saiu!", color=discord.Color.red())
-    embed.set_thumbnail(url=member.display_avatar.url)
-
-    embed.add_field(name="DISCORD:", value=member.mention, inline=False)
-    embed.add_field(name="ID DISCORD:", value=member.id, inline=False)
-    embed.add_field(name="Nome:", value=member.name, inline=False)
-
-    roles = ", ".join([role.name for role in member.roles if role.name != '@everyone'])
-    embed.add_field(name="Cargos Antes da Saída:", value=roles, inline=False)
-
-    embed.set_footer(text=f"{member.guild.name}")
-
-    channel = guild.get_channel(channel_id)
-    if channel:
-        await channel.send(embed=embed)
-
-bot.run(os.getenv('DISCORD_TOKEN'))
+# Inicializar o bot com o token do arquivo .env
+token = os.getenv("DISCORD_TOKEN")
+bot.run(token)
