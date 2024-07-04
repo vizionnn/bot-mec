@@ -7,6 +7,7 @@ import re
 import time
 import asyncio
 from datetime import datetime, timedelta, timezone
+import pytz
 
 load_dotenv()
 
@@ -27,6 +28,9 @@ data_fim = datetime(2024, 8, 1, tzinfo=timezone.utc)     # Define a data de fim 
 
 # Variável para armazenar a mensagem do ranking
 mensagem_ranking = None
+
+# Defina o fuso horário
+timezone = pytz.timezone('America/Sao_Paulo')
 
 # Canal de destino para o ranking
 canal_ranking_id = 1246991184593948764  # ID do canal ranking-tunning
@@ -129,7 +133,7 @@ async def exibir_ranking():
     embed = discord.Embed(title="👑 Ranking de Relatórios de Tunning", description=ranking_str, color=0xffa500)
     embed.set_thumbnail(url=channel.guild.icon.url)
     embed.add_field(name="\u200b", value=f"**📬 Total de relatórios: {sum(relatorios.values())}**", inline=False)
-    embed.set_footer(text=f"📅 Desde\n`{data_inicio.strftime('%d %B')}` \n\n ⏰ Última atualização: {time.strftime('%H:%M:%S')}")
+    embed.set_footer(text=f"📅 Desde\n`{data_inicio.strftime('%d %B')}` \n\n ⏰ Última atualização: {current_time}")
 
     # Editar a mensagem existente ou enviar uma nova
     try:
