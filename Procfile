@@ -1,1 +1,1 @@
-worker: python bot4-nuvem.py
+worker: python bot5-nuvem.py
