@@ -9,3 +9,4 @@ multidict==6.0.5
 python-dotenv==1.0.1
 schedule==1.2.2
 yarl==1.9.4
+pytz
