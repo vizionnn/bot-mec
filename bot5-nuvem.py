@@ -916,6 +916,53 @@ async def enviar_mensagem_consulta():
     view = ConsultaView()
     await channel.send(embed=embed, view=view)
 
+def salvar_dados_em_arquivo():
+    conn = sqlite3.connect('horas_servico.db')
+    c = conn.cursor()
+    c.execute('SELECT * FROM horas_servico')
+    registros = c.fetchall()
+    conn.close()
+
+    with open('backup_horas_servico.json', 'w') as f:
+        json.dump(registros, f)
+
+@tasks.loop(minutes=10)
+async def salvar_dados():
+    salvar_dados_em_arquivo()
+
+def carregar_dados_de_arquivo():
+    try:
+        with open('backup_horas_servico.json', 'r') as f:
+            registros = json.load(f)
+
+        conn = sqlite3.connect('horas_servico.db')
+        c = conn.cursor()
+        c.executemany('INSERT INTO horas_servico VALUES (?, ?, ?, ?, ?, ?, ?)', registros)
+        conn.commit()
+        conn.close()
+    except FileNotFoundError:
+        print("Nenhum backup encontrado. Iniciando sem dados de backup.")
+
+@bot.event
+async def on_ready():
+    global hierarchy_message_id
+    guild = bot.guilds[0]
+    channel = bot.get_channel(channel_id)
+    
+    ...  # Parte inalterada
+
+    # Carregar os dados de backup
+    carregar_dados_de_arquivo()
+
+    ...  # Parte inalterada
+
+    # Iniciar a tarefa de salvar dados periodicamente
+    salvar_dados.start()
+
+    ...  # Parte inalterada
+
+
+
 
 # Evento on_ready para enviar a prova, a mensagem inicial da hierarquia, carregar comandos slash e o bot de horas
 
