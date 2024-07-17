@@ -14,6 +14,12 @@ from datetime import datetime, timezone, timedelta
 
 load_dotenv()
 
+#comandos dm e message
+AUTHORIZED_ROLES = [1235035964556972095, 1235035964556972099]
+LOG_CHANNEL_ID = 1249235583637651507
+
+tree = bot.tree
+
 # IDs do canal de provas e do canal de correção de provas
 canal_prova_aluno_id = 1235035966876549126
 canal_corrigir_prova_id = 1235035966876549127
@@ -143,6 +149,59 @@ async def tempo_error(interaction: discord.Interaction, error):
     else:
         await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
         print(f"Erro no comando /tempo: {error}")
+
+# Verifica se o usuário tem um dos cargos autorizados
+def check_authorized_roles():
+    async def predicate(interaction: discord.Interaction):
+        return any(role.id in AUTHORIZED_ROLES for role in interaction.user.roles)
+    return app_commands.check(predicate)
+
+#   Comando /mensagem
+@tree.command(name="mensagem", description="Enviar mensagem privada para todos os membros de um cargo.")
+@app_commands.describe(cargo="Cargo alvo", mensagem="Mensagem a ser enviada")
+@check_authorized_roles()
+async def mensagem(interaction: discord.Interaction, cargo: discord.Role, mensagem: str):
+    log_channel = bot.get_channel(LOG_CHANNEL_ID)
+    await interaction.response.send_message(f'Enviando mensagens para todos os membros com o cargo {cargo.mention}.', ephemeral=True)
+    for member in cargo.members:
+        try:
+            await member.send(mensagem)
+        except discord.Forbidden:
+            await log_channel.send(f'Não foi possível enviar a mensagem para {member.mention}.')
+    await log_channel.send(
+        f'Usuário {interaction.user.mention} enviou a seguinte mensagem para o cargo {cargo.mention}:\n```\n{mensagem}\n```'
+    )
+
+@mensagem.error
+async def mensagem_error(interaction: discord.Interaction, error):
+    if isinstance(error, app_commands.MissingPermissions):
+        await interaction.response.send_message("Você não tem permissão para usar este comando.", ephemeral=True)
+    else:
+        await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
+        print(f"Erro no comando /mensagem: {error}")
+
+#   comando /dm
+@tree.command(name="dm", description="Enviar mensagem privada para um usuário específico.")
+@app_commands.describe(user="Usuário alvo", mensagem="Mensagem a ser enviada")
+@check_authorized_roles()
+async def dm(interaction: discord.Interaction, user: discord.User, mensagem: str):
+    log_channel = bot.get_channel(LOG_CHANNEL_ID)
+    try:
+        await user.send(mensagem)
+        await interaction.response.send_message(f'Mensagem enviada para {user.mention}.', ephemeral=True)
+        await log_channel.send(
+            f'Usuário {interaction.user.mention} enviou a seguinte mensagem para {user.mention}:\n```\n{mensagem}\n```'
+        )
+    except discord.Forbidden:
+        await interaction.response.send_message(f'Não foi possível enviar a mensagem para {user.mention}.', ephemeral=True)
+
+@dm.error
+async def dm_error(interaction: discord.Interaction, error):
+    if isinstance(error, app_commands.MissingPermissions):
+        await interaction.response.send_message("Você não tem permissão para usar este comando.", ephemeral=True)
+    else:
+        await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
+        print(f"Erro no comando /dm: {error}")
 
 # Comando /contratar
 @bot.tree.command(name="contratar", description="Contratar um novo membro e dar os cargos especificados.")
@@ -943,26 +1002,6 @@ def carregar_dados_de_arquivo():
     except FileNotFoundError:
         print("Nenhum backup encontrado. Iniciando sem dados de backup.")
 
-@bot.event
-async def on_ready():
-    global hierarchy_message_id
-    guild = bot.guilds[0]
-    channel = bot.get_channel(channel_id)
-    
-    ...  # Parte inalterada
-
-    # Carregar os dados de backup
-    carregar_dados_de_arquivo()
-
-    ...  # Parte inalterada
-
-    # Iniciar a tarefa de salvar dados periodicamente
-    salvar_dados.start()
-
-    ...  # Parte inalterada
-
-
-
 
 # Evento on_ready para enviar a prova, a mensagem inicial da hierarquia, carregar comandos slash e o bot de horas
 
@@ -978,6 +1017,8 @@ async def on_ready():
     except Exception as e:
         print(f"Erro ao sincronizar comandos: {e}")
 
+    carregar_dados_de_arquivo()
+    salvar_dados.start()
 
     hierarchy_text = await build_hierarchy(guild)
 
