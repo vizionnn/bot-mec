@@ -148,6 +148,8 @@ async def tempo_error(interaction: discord.Interaction, error):
         await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
         print(f"Erro no comando /tempo: {error}")
 
+tree = bot.tree
+
 # Verifica se o usuário tem um dos cargos autorizados
 def check_authorized_roles():
     async def predicate(interaction: discord.Interaction):
