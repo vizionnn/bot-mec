@@ -1018,6 +1018,7 @@ async def on_ready():
     # Enviar a mensagem inicial do bot de horas
     create_table()
     carregar_dados_de_arquivo()
+    await bot.tree.sync()
     atualizar_horas_servico.start()
     salvar_dados.start()
     await enviar_mensagem_consulta()
