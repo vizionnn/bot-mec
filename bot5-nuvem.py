@@ -984,16 +984,6 @@ async def enviar_mensagem_consulta():
     view = ConsultaView()
     await channel.send(embed=embed, view=view)
 
-def salvar_dados_em_arquivo():
-    conn = sqlite3.connect('horas_servico.db')
-    c = conn.cursor()
-    c.execute('SELECT * FROM horas_servico')
-    registros = c.fetchall()
-    conn.close()
-
-    with open('backup_horas_servico.json', 'w') as f:
-        json.dump(registros, f)
-
 @tasks.loop(minutes=10)
 async def salvar_dados():
     salvar_dados_em_arquivo()
@@ -1058,9 +1048,6 @@ async def on_ready():
     except discord.errors.Forbidden:
         print("Erro: O bot não tem permissão para ler o histórico de mensagens do canal.")
     
-    # Iniciar a tarefa de salvar dados periodicamente
-    salvar_dados.start()
-
     await enviar_ou_editar_mensagem_inicial()
     verificar_interacao.start()
 
