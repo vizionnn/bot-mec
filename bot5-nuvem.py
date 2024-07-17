@@ -18,8 +18,6 @@ load_dotenv()
 AUTHORIZED_ROLES = [1235035964556972095, 1235035964556972099]
 LOG_CHANNEL_ID = 1249235583637651507
 
-tree = bot.tree
-
 # IDs do canal de provas e do canal de correção de provas
 canal_prova_aluno_id = 1235035966876549126
 canal_corrigir_prova_id = 1235035966876549127
