@@ -872,11 +872,20 @@ def create_table():
     conn.commit()
     conn.close()
 
+def salvar_dados_em_arquivo():
+    conn = sqlite3.connect('horas_servico.db')
+    c = conn.cursor()
+    c.execute('SELECT * FROM horas_servico')
+    registros = c.fetchall()
+    conn.close()
+
+    with open('backup_horas_servico.json', 'w') as f:
+        json.dump(registros, f)
+
 @tasks.loop(minutes=1)
 async def atualizar_horas_servico():
     conn = sqlite3.connect('horas_servico.db')
     c = conn.cursor()
-    
     for guild in bot.guilds:
         for canal_id in canais_voz_ids:
             canal = guild.get_channel(canal_id)
@@ -1002,11 +1011,17 @@ def carregar_dados_de_arquivo():
     except FileNotFoundError:
         print("Nenhum backup encontrado. Iniciando sem dados de backup.")
 
-
 # Evento on_ready para enviar a prova, a mensagem inicial da hierarquia, carregar comandos slash e o bot de horas
 
 @bot.event
 async def on_ready():
+    # Enviar a mensagem inicial do bot de horas
+    create_table()
+    carregar_dados_de_arquivo()
+    atualizar_horas_servico.start()
+    salvar_dados.start()
+    await enviar_mensagem_consulta()
+
     global hierarchy_message_id
     guild = bot.guilds[0]
     channel = bot.get_channel(channel_id)
@@ -1017,15 +1032,7 @@ async def on_ready():
     except Exception as e:
         print(f"Erro ao sincronizar comandos: {e}")
 
-    carregar_dados_de_arquivo()
-    salvar_dados.start()
-
     hierarchy_text = await build_hierarchy(guild)
-
-    # Enviar a mensagem inicial do bot de horas
-    atualizar_horas_servico.start()
-    create_table()
-    await enviar_mensagem_consulta()
 
     # Enviar a mensagem inicial ou editar a mensagem existente
     if hierarchy_message_id is None:
