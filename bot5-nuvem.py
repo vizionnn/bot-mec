@@ -673,6 +673,13 @@ async def verificar_interacao():
 #-----------------------------------------------------------------FIM PROVA------------------------------------------------------------------
 
 # -------------------------------------------RANKING RELATÓRIOS---------------------------------------------------
+
+async def buscar_mensagem_ranking(canal):
+    async for mensagem in canal.history(limit=100):
+        if mensagem.author == bot.user and mensagem.embeds and mensagem.embeds[0].title == "👑 Ranking de Relatórios de Tunning":
+            return mensagem
+    return None
+
 async def carregar_relatorios_antigos(channel):
     global relatorios
     print(f"Carregando relatórios antigos entre {data_inicio} e {data_fim}...")
@@ -969,6 +976,12 @@ class ConsultaView(View):
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+async def buscar_mensagem_consulta(canal):
+    async for mensagem in canal.history(limit=100):
+        if mensagem.author == bot.user and "Consulta horas" in mensagem.embeds[0].title:
+            return mensagem
+    return None
+
 # Início da mensagem de consulta
 async def enviar_mensagem_consulta():
     channel = bot.get_channel(consultar_horas_id)
@@ -982,7 +995,13 @@ async def enviar_mensagem_consulta():
     embed.set_footer(text="© Copyright |🛠・Benny's - Originals")
     
     view = ConsultaView()
-    await channel.send(embed=embed, view=view)
+
+    # Buscar a mensagem existente ou enviar uma nova
+    mensagem_consulta = await buscar_mensagem_consulta(channel)
+    if mensagem_consulta:
+        await mensagem_consulta.edit(embed=embed, view=view)
+    else:
+        await channel.send(embed=embed, view=view)
 
 @tasks.loop(minutes=10)
 async def salvar_dados():
@@ -995,7 +1014,7 @@ def carregar_dados_de_arquivo():
 
         conn = sqlite3.connect('horas_servico.db')
         c = conn.cursor()
-        c.executemany('INSERT INTO horas_servico VALUES (?, ?, ?, ?, ?, ?, ?)', registros)
+        c.executemany('INSERT OR REPLACE INTO horas_servico VALUES (?, ?, ?, ?, ?, ?, ?)', registros)
         conn.commit()
         conn.close()
     except FileNotFoundError:
@@ -1007,11 +1026,11 @@ def carregar_dados_de_arquivo():
 async def on_ready():
     # Enviar a mensagem inicial do bot de horas
     create_table()
-    carregar_dados_de_arquivo()
     await bot.tree.sync()
+    await enviar_ou_editar_mensagem_consulta()
     atualizar_horas_servico.start()
     salvar_dados.start()
-    await enviar_mensagem_consulta()
+    carregar_dados_de_arquivo()
 
     global hierarchy_message_id
     guild = bot.guilds[0]
