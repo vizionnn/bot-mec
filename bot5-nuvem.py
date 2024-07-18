@@ -751,9 +751,14 @@ async def exibir_ranking():
     # Editar a mensagem existente ou enviar uma nova
     try:
         if mensagem_ranking:
+            # Tentativa de editar a mensagem existente
             await mensagem_ranking.edit(embed=embed)
         else:
+            # Enviar uma nova mensagem se mensagem_ranking não existir
             mensagem_ranking = await channel.send(embed=embed)
+    except discord.errors.NotFound:
+        # Enviar uma nova mensagem se a mensagem existente não for encontrada (foi deletada)
+        mensagem_ranking = await channel.send(embed=embed)
     except discord.errors.HTTPException as e:
         print(f"Erro ao atualizar o ranking: {e}")
 
@@ -1021,15 +1026,24 @@ def carregar_dados_de_arquivo():
         print("Nenhum backup encontrado. Iniciando sem dados de backup.")
 
 # Evento on_ready para enviar a prova, a mensagem inicial da hierarquia, carregar comandos slash e o bot de horas
-
 @bot.event
 async def on_ready():
-    # Enviar a mensagem inicial do bot de horas
+    # Criar a tabela no banco de dados
     create_table()
+
+    # Sincronizar os comandos do bot
     await bot.tree.sync()
+
+    # Enviar a mensagem inicial de consulta de horas
     await enviar_mensagem_consulta()
-    atualizar_horas_servico.start()
-    salvar_dados.start()
+
+    # Iniciar tarefas de atualização de horas e salvamento de dados
+    if not atualizar_horas_servico.is_running():
+        atualizar_horas_servico.start()
+    if not salvar_dados.is_running():
+        salvar_dados.start()
+
+    # Carregar dados de arquivo
     carregar_dados_de_arquivo()
 
     global hierarchy_message_id
@@ -1038,7 +1052,7 @@ async def on_ready():
     
     try:
         await bot.tree.sync()
-        print(f"Sincronização de comandos concluída.")
+        print("Sincronização de comandos concluída.")
     except Exception as e:
         print(f"Erro ao sincronizar comandos: {e}")
 
@@ -1052,23 +1066,30 @@ async def on_ready():
         message = await channel.fetch_message(hierarchy_message_id)
         await message.edit(content=hierarchy_text)
 
-    global membros_por_id  # Declarar a variável global
-    membros_por_id = {membro.id: membro for membro in bot.get_all_members()}  # Criar o dicionário aqui
+    # Criar um dicionário de membros por ID
+    global membros_por_id
+    membros_por_id = {membro.id: membro for membro in bot.get_all_members()}
 
+    # Carregar relatórios antigos e exibir o ranking inicial
     try:
-        # Certifique-se de que estamos carregando o histórico do canal correto
         canal_relatorios = bot.get_channel(1235035965945413649)  # Canal #relat-tunning
         if canal_relatorios:
-            await bot.wait_until_ready()  # Espera o bot estar pronto
-            await carregar_relatorios_antigos(canal_relatorios)  # Carrega relatórios antigos
-            await exibir_ranking()  # Exibe o ranking inicial no canal correto
+            await bot.wait_until_ready()  # Esperar o bot estar pronto
+            await carregar_relatorios_antigos(canal_relatorios)  # Carregar relatórios antigos
+            await exibir_ranking()  # Exibir o ranking inicial
     except discord.errors.NotFound:
         print("Erro: Canal de relatórios não encontrado.")
     except discord.errors.Forbidden:
         print("Erro: O bot não tem permissão para ler o histórico de mensagens do canal.")
     
+    # Enviar ou editar a mensagem inicial (relacionada à hierarquia ou outra funcionalidade)
     await enviar_ou_editar_mensagem_inicial()
-    verificar_interacao.start()
 
+    # Iniciar a verificação de interação
+    if not verificar_interacao.is_running():
+        verificar_interacao.start()
 
+    print(f'Bot conectado como {bot.user}')
+
+# Rodar o bot com o token do ambiente
 bot.run(os.getenv("DISCORD_TOKEN"))
