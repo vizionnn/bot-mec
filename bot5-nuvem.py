@@ -180,6 +180,9 @@ async def mensagem_error(interaction: discord.Interaction, error):
         await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
         print(f"Erro no comando /mensagem: {error}")
 
+
+
+
 #   comando /dm
 @tree.command(name="dm", description="Enviar mensagem privada para um usuário específico.")
 @app_commands.describe(user="Usuário alvo", mensagem="Mensagem a ser enviada")
@@ -809,6 +812,58 @@ async def processar_relatorio_remocao(message):
 
     await exibir_ranking()  # Atualiza o ranking imediatamente
 
+allowed_roles = [1235035964556972099, 1235035964556972095]
+
+# Dicionário para armazenar os relatórios
+relatorios = {}
+
+class MyBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix='/', intents=discord.Intents.all())
+
+    async def setup_hook(self):
+        await self.tree.sync()
+
+bot = MyBot()
+
+# Função de verificação de permissões
+async def has_allowed_role(interaction: discord.Interaction) -> bool:
+    user_roles = [role.id for role in interaction.user.roles]
+    return any(role in allowed_roles for role in user_roles)
+
+@bot.tree.command(name="consultarelat", description="Consulta relatórios de um usuário em um período.")
+@app_commands.describe(user="Usuário a ser consultado", data_inicio="Data de início (DD/MM/YYYY)", data_fim="Data de fim (DD/MM/YYYY)")
+async def consultarelat(interaction: discord.Interaction, user: discord.User, data_inicio: str, data_fim: str):
+    # Verificar permissões
+    if not await has_allowed_role(interaction):
+        await interaction.response.send_message("Você não tem permissão para usar este comando.", ephemeral=True)
+        return
+
+    try:
+        # Converte as datas de string para objetos datetime
+        data_inicio_dt = datetime.strptime(data_inicio, "%d/%m/%Y")
+        data_fim_dt = datetime.strptime(data_fim, "%d/%m/%Y")
+    except ValueError:
+        await interaction.response.send_message("Formato de data inválido. Use DD/MM/YYYY.", ephemeral=True)
+        return
+
+    # Variável para contar os relatórios dentro do período
+    total_relatorios = 0
+
+    # Canal #relat-tunning
+    canal_relatorios = bot.get_channel(1235035965945413649)
+
+    if not canal_relatorios:
+        await interaction.response.send_message("Erro: Canal de relatórios não encontrado.", ephemeral=True)
+        return
+
+    # Busca de mensagens no canal dentro do período
+    async for message in canal_relatorios.history(after=data_inicio_dt, before=data_fim_dt):
+        if message.author == user:
+            total_relatorios += 1
+
+    await interaction.response.send_message(f"{user.mention} fez {total_relatorios} relatórios de {data_inicio} a {data_fim}.")
+
 
 # ------------------------------------------------------------------------------FIM RANK RELATÓRIOS---------------------------------------
 # Tarefa para salvar dados periodicamente
@@ -867,6 +922,11 @@ async def on_member_update(before, after):
         if hierarchy_message_id is not None:
             message = await channel.fetch_message(hierarchy_message_id)
             await message.edit(content=hierarchy_text)
+
+# Event to capture errors and prevent duplicate execution
+@bot.event
+async def on_error(event_method, *args, **kwargs):
+    print(f"Error in {event_method}: {args} {kwargs}")
 
     #~~~~~~~~~~~~~~~~~~~~---------------------------BOT DE HORAS-----------------------------~~~~~~~~~~~~~~~~~~~~
 
