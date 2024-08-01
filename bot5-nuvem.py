@@ -3,6 +3,7 @@ from discord.ext import commands, tasks
 from discord import app_commands
 from discord.ui import Button, View, Select, Modal, TextInput
 from discord.utils import get
+import logging
 import pytz
 import re
 import os
@@ -67,6 +68,8 @@ roles_ids = {
     'devedor_adv': 1255196379609825350
 }
 
+hierarchy_message_id = None  # Variável para armazenar o ID da mensagem de hierarquia
+
 # Configurações dos intents
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -79,8 +82,8 @@ cargos_desejados = [
 ]
 
 # Data de início e fim da contagem
-data_inicio = datetime(2024, 7, 1, tzinfo=timezone.utc)  # Define a data de início com fuso horário UTC
-data_fim = datetime(2024, 8, 1, tzinfo=timezone.utc)     # Define a data de fim com fuso horário UTC
+data_inicio = datetime(2024, 8, 1, tzinfo=timezone.utc)  # Define a data de início com fuso horário UTC
+data_fim = datetime.now(timezone_brasil)     # Define a data de fim com fuso horário UTC
 
 # Variável para armazenar a mensagem do ranking
 mensagem_ranking = None
@@ -94,6 +97,8 @@ canal_ranking_id = 1246991184593948764  # ID do canal ranking-tunning
 # Caminho para o arquivo de relatórios
 relatorios_path = 'relatorios.json'
 
+logging.basicConfig(level=logging.INFO)
+
 # Carregar dados de relatórios
 relatorios = {}
 if os.path.exists(relatorios_path):
@@ -106,19 +111,18 @@ if os.path.exists(relatorios_path):
 # IDs dos cargos com permissão
 cargos_permitidos = [1235035964556972099, 1235035964556972095]
 
-# Configurações dos intents
-intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents)
 
-# IDs dos canais de voz a serem monitorados
+# IDs dos canais de voz a serem monitorados / bot horas
 canais_voz_ids = [
     1246984837223419944, 1244164121553932318, 1244170549312098354,
     1244170938355027978, 1244171050397470731, 1244174326949744711,
     1244174420139053077, 1247009675162161162
 ]
 
-# ID do canal de consulta
-consultar_horas_id = 1246990807140007997
+log_de_comando_id = 1255997541259018241  # Substitua pelo ID real do canal de log de comando
+consultar_horas_id = 1246990807140007997 # ID do canal de consulta
+
+#fim variaveis bot horas
 
 @bot.tree.command(name="tempo", description="Consultar o tempo em serviço de um usuário pelo ID ou menção.")
 @app_commands.describe(user="ID ou menção do usuário a ser consultado")
@@ -677,11 +681,14 @@ async def verificar_interacao():
 
 # -------------------------------------------RANKING RELATÓRIOS---------------------------------------------------
 
-async def buscar_mensagem_ranking(canal):
-    async for mensagem in canal.history(limit=100):
-        if mensagem.author == bot.user and mensagem.embeds and mensagem.embeds[0].title == "👑 Ranking de Relatórios de Tunning":
-            return mensagem
-    return None
+# Função para buscar ou editar a mensagem de ranking
+async def buscar_ou_editar_mensagem_ranking(canal):
+    mensagem_ranking = None
+    async for message in canal.history(limit=10):
+        if message.author == bot.user and message.embeds and message.embeds[0].title == "👑 Ranking de Relatórios de Tunning":
+            mensagem_ranking = message
+            break
+    return mensagem_ranking
 
 async def carregar_relatorios_antigos(channel):
     global relatorios
@@ -826,6 +833,16 @@ class MyBot(commands.Bot):
 
 bot = MyBot()
 
+#eventos de desconxeão e retomada
+
+@bot.event
+async def on_disconnect():
+    logging.warning('Bot desconectado! Tentando reconectar...')
+
+@bot.event
+async def on_resumed():
+    logging.info('Conexão retomada com sucesso!')
+
 # Função de verificação de permissões
 async def has_allowed_role(interaction: discord.Interaction) -> bool:
     user_roles = [role.id for role in interaction.user.roles]
@@ -866,11 +883,89 @@ async def consultarelat(interaction: discord.Interaction, user: discord.User, da
 
 
 # ------------------------------------------------------------------------------FIM RANK RELATÓRIOS---------------------------------------
+
 # Tarefa para salvar dados periodicamente
 @tasks.loop(minutes=5)  # Ajuste o intervalo conforme necessário
 async def salvar_dados():
     with open(relatorios_path, 'w') as f:
         json.dump(relatorios, f)
+
+#devedores canal
+
+# Função para enviar ou editar a mensagem inicial da hierarquia
+async def enviar_ou_editar_mensagem_inicial_hierarquia():
+    global hierarchy_message_id
+    guild = bot.guilds[0]
+    channel = bot.get_channel(channel_id)
+
+# Função para construir a hierarquia de devedores
+async def build_hierarchy(guild):
+    hierarchy_text = "**# Hierarquia: Devedores ⛔**\n"
+    for role_name, role_id in roles_ids.items():
+        role = get(guild.roles, id=role_id)
+        if role:
+            members_with_role = role.members
+            hierarchy_text += f"# {role.mention} : {len(members_with_role)}\n"
+            for member in members_with_role:
+                hierarchy_text += f"{member.mention}\n"
+    return hierarchy_text
+
+# Função para enviar ou editar a mensagem inicial da hierarquia
+async def enviar_ou_editar_mensagem_inicial_hierarquia():
+    global hierarchy_message_id
+    guild = bot.guilds[0]
+    channel = bot.get_channel(channel_id)
+
+    if not channel:
+        print("Erro: Canal de devedores não encontrado.")
+        return
+
+    hierarchy_text = await build_hierarchy(guild)
+
+    try:
+        if hierarchy_message_id is None:
+            # Procurar pela mensagem existente no canal
+            async for message in channel.history(limit=10):
+                if message.author == bot.user and "**# Hierarquia: Devedores ⛔**" in message.content:
+                    hierarchy_message_id = message.id
+                    break
+
+        if hierarchy_message_id is None:
+            # Enviar nova mensagem se não encontrada
+            message = await channel.send(hierarchy_text)
+            hierarchy_message_id = message.id
+        else:
+            # Editar a mensagem existente
+            message = await channel.fetch_message(hierarchy_message_id)
+            await message.edit(content=hierarchy_text)
+    except discord.errors.NotFound:
+        # Enviar nova mensagem se a mensagem não for encontrada ao buscar
+        message = await channel.send(hierarchy_text)
+        hierarchy_message_id = message.id
+    except discord.errors.Forbidden:
+        print("Erro: O bot não tem permissão para enviar ou editar mensagens no canal.")
+
+# Evento on_member_update para atualizar a hierarquia dinamicamente
+@bot.event
+async def on_member_update(before, after):
+    global hierarchy_message_id
+    guild = after.guild
+    channel = bot.get_channel(channel_id)
+    
+    # Verificar se houve mudança nos cargos do membro
+    if before.roles != after.roles:
+        hierarchy_text = await build_hierarchy(guild)
+        
+        if hierarchy_message_id is not None:
+            message = await channel.fetch_message(hierarchy_message_id)
+            await message.edit(content=hierarchy_text)
+
+# fim bot canal devedores
+
+# Evento on_error para capturar erros e evitar execução duplicada
+@bot.event
+async def on_error(event_method, *args, **kwargs):
+    print(f"Erro em {event_method}: {args} {kwargs}")
 
 # Evento para registrar saídas de membros
 @bot.event
@@ -894,42 +989,9 @@ async def on_member_remove(member):
     if channel:
         await channel.send(embed=embed)
 
-channel_id = 1255178131707265066
-hierarchy_message_id = None  # Variável para armazenar o ID da mensagem de hierarquia
-
-# Função para construir a hierarquia de devedores
-async def build_hierarchy(guild):
-    hierarchy_text = "** # Hierarquia: Devedores ⛔**\n"
-    for role_name, role_id in roles_ids.items():
-        role = get(guild.roles, id=role_id)
-        members_with_role = role.members
-        hierarchy_text += f"# {role.mention} : {len(members_with_role)}\n"
-        for member in members_with_role:
-            hierarchy_text += f"{member.mention}\n"
-    return hierarchy_text
-
-# Evento on_member_update para atualizar a hierarquia dinamicamente
-@bot.event
-async def on_member_update(before, after):
-    global hierarchy_message_id
-    guild = after.guild
-    channel = bot.get_channel(channel_id)
-    
-    # Verificar se houve mudança nos cargos do membro
-    if before.roles != after.roles:
-        hierarchy_text = await build_hierarchy(guild)
-        
-        if hierarchy_message_id is not None:
-            message = await channel.fetch_message(hierarchy_message_id)
-            await message.edit(content=hierarchy_text)
-
-# Event to capture errors and prevent duplicate execution
-@bot.event
-async def on_error(event_method, *args, **kwargs):
-    print(f"Error in {event_method}: {args} {kwargs}")
-
     #~~~~~~~~~~~~~~~~~~~~---------------------------BOT DE HORAS-----------------------------~~~~~~~~~~~~~~~~~~~~
 
+# Criação da tabela de serviço
 def create_table():
     conn = sqlite3.connect('horas_servico.db')
     c = conn.cursor()
@@ -944,6 +1006,7 @@ def create_table():
     conn.commit()
     conn.close()
 
+# Salvar dados em arquivo
 def salvar_dados_em_arquivo():
     conn = sqlite3.connect('horas_servico.db')
     c = conn.cursor()
@@ -954,6 +1017,7 @@ def salvar_dados_em_arquivo():
     with open('backup_horas_servico.json', 'w') as f:
         json.dump(registros, f)
 
+# Atualizar horas de serviço
 @tasks.loop(minutes=1)
 async def atualizar_horas_servico():
     conn = sqlite3.connect('horas_servico.db')
@@ -974,6 +1038,7 @@ async def atualizar_horas_servico():
                     conn.commit()
     conn.close()
 
+# Calcular tempo de serviço
 def calcular_tempo_servico(user_id):
     conn = sqlite3.connect('horas_servico.db')
     c = conn.cursor()
@@ -982,6 +1047,7 @@ def calcular_tempo_servico(user_id):
     conn.close()
     return tempo_total if tempo_total else 0
 
+# Calcular posição no ranking
 def calcular_posicao_ranking(user_id):
     conn = sqlite3.connect('horas_servico.db')
     c = conn.cursor()
@@ -993,11 +1059,39 @@ def calcular_posicao_ranking(user_id):
             return posicao
     return None
 
+# Formatar tempo
 def formatar_tempo(segundos):
     horas = segundos // 3600
     minutos = (segundos % 3600) // 60
     segundos = segundos % 60
     return f"{horas}h {minutos}m {segundos}s"
+
+# Buscar mensagem de consulta
+async def buscar_mensagem_consulta(canal):
+    async for mensagem in canal.history(limit=10):
+        if mensagem.author == bot.user and "Consulta horas" in mensagem.embeds[0].title:
+            return mensagem
+    return None
+
+# Enviar ou editar mensagem de consulta
+async def enviar_mensagem_consulta():
+    channel = bot.get_channel(consultar_horas_id)
+    embed = discord.Embed(title="⏰ | Consulta horas - 🛠️・Benny's - Originals", color=discord.Color.orange())
+    embed.description = (
+        "Para consultar as horas basta clicar no botão abaixo \"CONSULTAR HORAS\".\n\n"
+        "⏰ **Consulta** horas Totais.\n"
+        "📊 **Consulta** sua posição no ranking.\n"
+        "📊 **Consulta** Top 15 em horas.\n\n"
+    )
+    embed.set_footer(text="© Copyright |🛠・Benny's - Originals")
+    
+    view = ConsultaView()
+
+    mensagem_consulta = await buscar_mensagem_consulta(channel)
+    if mensagem_consulta:
+        await mensagem_consulta.edit(embed=embed, view=view)
+    else:
+        await channel.send(embed=embed, view=view)
 
 # Botões de consulta de horas e ranking
 class ConsultaView(View):
@@ -1041,37 +1135,12 @@ class ConsultaView(View):
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-async def buscar_mensagem_consulta(canal):
-    async for mensagem in canal.history(limit=100):
-        if mensagem.author == bot.user and "Consulta horas" in mensagem.embeds[0].title:
-            return mensagem
-    return None
-
-# Início da mensagem de consulta
-async def enviar_mensagem_consulta():
-    channel = bot.get_channel(consultar_horas_id)
-    embed = discord.Embed(title="⏰ | Consulta horas - 🛠️・Benny's - Originals", color=discord.Color.orange())
-    embed.description = (
-        "Para consultar as horas basta clicar no botão abaixo \"CONSULTAR HORAS\".\n\n"
-        "⏰ **Consulta** horas Totais.\n"
-        "📊 **Consulta** sua posição no ranking.\n"
-        "📊 **Consulta** Top 15 em horas.\n\n"
-    )
-    embed.set_footer(text="© Copyright |🛠・Benny's - Originals")
-    
-    view = ConsultaView()
-
-    # Buscar a mensagem existente ou enviar uma nova
-    mensagem_consulta = await buscar_mensagem_consulta(channel)
-    if mensagem_consulta:
-        await mensagem_consulta.edit(embed=embed, view=view)
-    else:
-        await channel.send(embed=embed, view=view)
-
+# Salvar dados periodicamente
 @tasks.loop(minutes=10)
 async def salvar_dados():
     salvar_dados_em_arquivo()
 
+# Carregar dados de arquivo
 def carregar_dados_de_arquivo():
     try:
         with open('backup_horas_servico.json', 'r') as f:
@@ -1085,26 +1154,46 @@ def carregar_dados_de_arquivo():
     except FileNotFoundError:
         print("Nenhum backup encontrado. Iniciando sem dados de backup.")
 
+# Exibir ranking de horas no log de comando
+async def exibir_ranking_horas():
+    conn = sqlite3.connect('horas_servico.db')
+    c = conn.cursor()
+    c.execute('SELECT user_id, SUM(tempo_servico) as total_tempo FROM horas_servico GROUP BY user_id ORDER BY total_tempo DESC')
+    ranking = c.fetchall()
+    conn.close()
+
+    ranking_str = "⏰ | Ranking de Horas Totais Trabalhadas\n\n"
+    for idx, (user_id, tempo_total) in enumerate(ranking, start=1):
+        user = bot.get_user(user_id)
+        if user:
+            tempo_formatado = formatar_tempo(tempo_total)
+            ranking_str += f"`{idx}`. {user.mention}: **{tempo_formatado}**\n"
+
+    embed = discord.Embed(description=ranking_str, color=discord.Color.orange())
+    embed.set_footer(text="© Copyright |🛠・Benny's - Originals")
+
+    channel = bot.get_channel(log_de_comando_id)
+    await channel.send(embed=embed)
+
+#fim bot horas
+
 # Evento on_ready para enviar a prova, a mensagem inicial da hierarquia, carregar comandos slash e o bot de horas
 @bot.event
 async def on_ready():
     # Criar a tabela no banco de dados
     create_table()
+    carregar_dados_de_arquivo()
+    await enviar_mensagem_consulta()
+    await exibir_ranking_horas()
 
     # Sincronizar os comandos do bot
     await bot.tree.sync()
-
-    # Enviar a mensagem inicial de consulta de horas
-    await enviar_mensagem_consulta()
 
     # Iniciar tarefas de atualização de horas e salvamento de dados
     if not atualizar_horas_servico.is_running():
         atualizar_horas_servico.start()
     if not salvar_dados.is_running():
         salvar_dados.start()
-
-    # Carregar dados de arquivo
-    carregar_dados_de_arquivo()
 
     global hierarchy_message_id
     guild = bot.guilds[0]
@@ -1143,6 +1232,8 @@ async def on_ready():
         print("Erro: O bot não tem permissão para ler o histórico de mensagens do canal.")
     
     # Enviar ou editar a mensagem inicial (relacionada à hierarquia ou outra funcionalidade)
+    await enviar_ou_editar_mensagem_inicial_hierarquia()
+
     await enviar_ou_editar_mensagem_inicial()
 
     # Iniciar a verificação de interação
