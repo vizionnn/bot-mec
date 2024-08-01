@@ -677,9 +677,11 @@ async def enviar_ou_editar_mensagem_inicial():
 @tasks.loop(minutes=2)
 async def verificar_interacao():
     await enviar_ou_editar_mensagem_inicial()
-#-----------------------------------------------------------------FIM PROVA------------------------------------------------------------------
 
-# -------------------------------------------RANKING RELATÓRIOS---------------------------------------------------
+#-----------FIM PROVA--------------
+
+
+# -------------RANKING RELATÓRIOS----------------
 
 # Função para buscar ou editar a mensagem de ranking
 async def buscar_ou_editar_mensagem_ranking(canal):
@@ -727,6 +729,9 @@ async def exibir_ranking():
 
     # Buscar o canal correto para o ranking
     channel = bot.get_channel(canal_ranking_id)
+
+        # Buscar ou criar a mensagem de ranking
+    mensagem_ranking = await buscar_ou_editar_mensagem_ranking(channel)
 
     if not channel:
         print("Erro: Canal de ranking não encontrado.")
@@ -954,12 +959,27 @@ async def on_member_update(before, after):
     
     # Verificar se houve mudança nos cargos do membro
     if before.roles != after.roles:
-        hierarchy_text = await build_hierarchy(guild)
-        
-        if hierarchy_message_id is not None:
-            message = await channel.fetch_message(hierarchy_message_id)
-            await message.edit(content=hierarchy_text)
-
+        try:
+            print(f"Atualizando hierarquia para {after.name}")
+            hierarchy_text = await build_hierarchy(guild)
+            
+            if hierarchy_message_id is not None:
+                try:
+                    message = await channel.fetch_message(hierarchy_message_id)
+                    await message.edit(content=hierarchy_text)
+                    print(f"Mensagem de hierarquia atualizada para {after.name}")
+                except discord.NotFound:
+                    print("Mensagem de hierarquia não encontrada. Criando uma nova mensagem.")
+                    hierarchy_message = await channel.send(hierarchy_text)
+                    hierarchy_message_id = hierarchy_message.id
+                    print(f"Nova mensagem de hierarquia criada com ID {hierarchy_message_id}")
+            else:
+                print("Nenhuma mensagem de hierarquia existente. Criando uma nova mensagem.")
+                hierarchy_message = await channel.send(hierarchy_text)
+                hierarchy_message_id = hierarchy_message.id
+                print(f"Nova mensagem de hierarquia criada com ID {hierarchy_message_id}")
+        except Exception as e:
+            print(f"Erro ao atualizar a hierarquia: {e}")
 # fim bot canal devedores
 
 # Evento on_error para capturar erros e evitar execução duplicada
@@ -1020,23 +1040,30 @@ def salvar_dados_em_arquivo():
 # Atualizar horas de serviço
 @tasks.loop(minutes=1)
 async def atualizar_horas_servico():
+    print("Iniciando atualização das horas de serviço...")
     conn = sqlite3.connect('horas_servico.db')
     c = conn.cursor()
     for guild in bot.guilds:
+        print(f"Verificando guilda: {guild.name}")
         for canal_id in canais_voz_ids:
             canal = guild.get_channel(canal_id)
             if canal:
+                print(f"Verificando canal: {canal.name}")
                 for membro in canal.members:
+                    print(f"Verificando membro: {membro.name}")
                     c.execute('SELECT * FROM horas_servico WHERE user_id=? AND canal_id=? AND data_fim IS NULL', (membro.id, canal_id))
                     registro = c.fetchone()
                     if registro:
+                        print(f"Atualizando tempo de serviço para {membro.name}")
                         tempo_servico = int((datetime.now(timezone.utc) - datetime.fromisoformat(registro[5]).replace(tzinfo=timezone.utc)).total_seconds())
                         c.execute('UPDATE horas_servico SET tempo_servico=? WHERE id=?', (tempo_servico, registro[0]))
                     else:
+                        print(f"Inserindo novo registro para {membro.name}")
                         c.execute('INSERT INTO horas_servico (user_id, user_name, canal_id, tempo_servico, data_inicio) VALUES (?, ?, ?, ?, ?)', 
                                   (membro.id, str(membro), canal_id, 0, datetime.now(timezone.utc).isoformat()))
                     conn.commit()
     conn.close()
+    print("Atualização das horas de serviço concluída.")
 
 # Calcular tempo de serviço
 def calcular_tempo_servico(user_id):
@@ -1094,12 +1121,12 @@ async def enviar_mensagem_consulta():
         await channel.send(embed=embed, view=view)
 
 # Botões de consulta de horas e ranking
-class ConsultaView(View):
+class ConsultaView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
     @discord.ui.button(label="⏰ CONSULTAR HORAS", style=discord.ButtonStyle.primary)
-    async def consultar_horas(self, interaction: discord.Interaction, button: Button):
+    async def consultar_horas(self, interaction: discord.Interaction, button: discord.ui.Button):
         user_id = interaction.user.id
         tempo_total = calcular_tempo_servico(user_id)
         ranking = calcular_posicao_ranking(user_id)
@@ -1117,7 +1144,7 @@ class ConsultaView(View):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @discord.ui.button(label="📊 CONSULTAR RANKING", style=discord.ButtonStyle.primary)
-    async def consultar_ranking(self, interaction: discord.Interaction, button: Button):
+    async def consultar_ranking(self, interaction: discord.Interaction, button: discord.ui.Button):
         conn = sqlite3.connect('horas_servico.db')
         c = conn.cursor()
         c.execute('SELECT user_id, SUM(tempo_servico) as total_tempo FROM horas_servico GROUP BY user_id ORDER BY total_tempo DESC LIMIT 15')
@@ -1145,7 +1172,6 @@ def carregar_dados_de_arquivo():
     try:
         with open('backup_horas_servico.json', 'r') as f:
             registros = json.load(f)
-
         conn = sqlite3.connect('horas_servico.db')
         c = conn.cursor()
         c.executemany('INSERT OR REPLACE INTO horas_servico VALUES (?, ?, ?, ?, ?, ?, ?)', registros)
