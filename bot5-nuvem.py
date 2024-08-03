@@ -582,14 +582,17 @@ async def contratar(interaction: discord.Interaction, nome: str, id_cidade: str,
             await interaction.response.send_message("Usuário não encontrado.", ephemeral=True)
     except Exception as e:
         print(f"Ocorreu um erro: {e}")
-        await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
+        if not interaction.response.is_done():
+            await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
 
 @contratar.error
 async def contratar_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.MissingAnyRole):
-        await interaction.response.send_message("Você não tem permissão para usar este comando.", ephemeral=True)
+        if not interaction.response.is_done():
+            await interaction.response.send_message("Você não tem permissão para usar este comando.", ephemeral=True)
     else:
-        await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
+        if not interaction.response.is_done():
+            await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
         print(f"Erro no comando /contratar: {error}")
 
 # Comando /promover
