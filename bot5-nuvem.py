@@ -530,7 +530,6 @@ async def dm_error(interaction: discord.Interaction, error):
         await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
         print(f"Erro no comando /dm: {error}")
 
-# Comando /contratar
 @bot.tree.command(name="contratar", description="Contratar um novo membro e dar os cargos especificados.")
 @app_commands.describe(nome="Primeiro nome do usuário", id_cidade="ID da cidade", usuario="Usuário a ser contratado")
 @app_commands.checks.has_any_role(cargo_visualizacao_1_id, cargo_visualizacao_2_id)
@@ -577,9 +576,11 @@ async def contratar(interaction: discord.Interaction, nome: str, id_cidade: str,
                 await canal_log.send(mensagem_log)
                 await interaction.response.send_message(f"Usuário {contratado.mention} contratado com sucesso!", ephemeral=True)
             except discord.errors.Forbidden:
-                await interaction.response.send_message("Permissões insuficientes para editar o usuário ou adicionar/remover cargos.", ephemeral=True)
+                if not interaction.response.is_done():
+                    await interaction.response.send_message("Permissões insuficientes para editar o usuário ou adicionar/remover cargos.", ephemeral=True)
         else:
-            await interaction.response.send_message("Usuário não encontrado.", ephemeral=True)
+            if not interaction.response.is_done():
+                await interaction.response.send_message("Usuário não encontrado.", ephemeral=True)
     except Exception as e:
         print(f"Ocorreu um erro: {e}")
         if not interaction.response.is_done():
