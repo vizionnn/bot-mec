@@ -3,6 +3,7 @@ from discord.ext import commands, tasks
 from discord import app_commands
 from discord.ui import Button, View, Select, Modal, TextInput
 from discord.utils import get
+import logging
 import pytz
 import re
 import os
@@ -117,8 +118,46 @@ canais_voz_ids = [
     1244174420139053077, 1247009675162161162
 ]
 
+#_______________________________________________________________________________
+
+# fim variáveis, inicio bot de prova
+
 # ID do canal de consulta
 consultar_horas_id = 1246990807140007997
+
+@bot.tree.command(name="consultarelat", description="Consulta relatórios de um usuário em um período.")
+@app_commands.describe(user="Usuário a ser consultado", data_inicio="Data de início (DD/MM/YYYY)", data_fim="Data de fim (DD/MM/YYYY)")
+async def consultarelat(interaction: discord.Interaction, user: discord.User, data_inicio: str, data_fim: str):
+    # Verificar permissões
+    if not await has_allowed_role(interaction):
+        await interaction.response.send_message("Você não tem permissão para usar este comando.", ephemeral=True)
+        return
+
+    try:
+        # Converte as datas de string para objetos datetime
+        data_inicio_dt = datetime.strptime(data_inicio, "%d/%m/%Y")
+        data_fim_dt = datetime.strptime(data_fim, "%d/%m/%Y")
+    except ValueError:
+        await interaction.response.send_message("Formato de data inválido. Use DD/MM/YYYY.", ephemeral=True)
+        return
+
+    # Variável para contar os relatórios dentro do período
+    total_relatorios = 0
+
+    # Canal #relat-tunning
+    canal_relatorios = bot.get_channel(1235035965945413649)
+
+    if not canal_relatorios:
+        await interaction.response.send_message("Erro: Canal de relatórios não encontrado.", ephemeral=True)
+        return
+
+    # Busca de mensagens no canal dentro do período
+    async for message in canal_relatorios.history(after=data_inicio_dt, before=data_fim_dt):
+        if message.author == user:
+            total_relatorios += 1
+
+    await interaction.response.send_message(f"{user.mention} fez {total_relatorios} relatórios de {data_inicio} a {data_fim}.")
+
 
 @bot.tree.command(name="tempo", description="Consultar o tempo em serviço de um usuário pelo ID ou menção.")
 @app_commands.describe(user="ID ou menção do usuário a ser consultado")
