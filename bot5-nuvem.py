@@ -3,7 +3,6 @@ from discord.ext import commands, tasks
 from discord import app_commands
 from discord.ui import Button, View, Select, Modal, TextInput
 from discord.utils import get
-import logging
 import pytz
 import re
 import os
@@ -68,8 +67,6 @@ roles_ids = {
     'devedor_adv': 1255196379609825350
 }
 
-hierarchy_message_id = None  # Variável para armazenar o ID da mensagem de hierarquia
-
 # Configurações dos intents
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -97,8 +94,6 @@ canal_ranking_id = 1246991184593948764  # ID do canal ranking-tunning
 # Caminho para o arquivo de relatórios
 relatorios_path = 'relatorios.json'
 
-logging.basicConfig(level=logging.INFO)
-
 # Carregar dados de relatórios
 relatorios = {}
 if os.path.exists(relatorios_path):
@@ -111,350 +106,19 @@ if os.path.exists(relatorios_path):
 # IDs dos cargos com permissão
 cargos_permitidos = [1235035964556972099, 1235035964556972095]
 
+# Configurações dos intents
+intents = discord.Intents.all()
+bot = commands.Bot(command_prefix="!", intents=intents)
 
-# IDs dos canais de voz a serem monitorados / bot horas
+# IDs dos canais de voz a serem monitorados
 canais_voz_ids = [
     1246984837223419944, 1244164121553932318, 1244170549312098354,
     1244170938355027978, 1244171050397470731, 1244174326949744711,
     1244174420139053077, 1247009675162161162
 ]
 
-log_de_comando_id = 1255997541259018241  # Substitua pelo ID real do canal de log de comando
-consultar_horas_id = 1246990807140007997 # ID do canal de consulta ----- fim variaveis bot horas
-
-#---------------------------------------------------------------PROVA--------------------------------------------------------
-
-questoes_abertas = [
-    "Por que quer ser mecânico?",
-    "Seu nome na cidade?",
-    "Idade em Nárnia?",
-    "ID na cidade?",
-    "ID de quem o recrutou?"
-]
-
-questoes_fechadas = [
-    {"pergunta": "Para ser promovido de ESTAGIARIO para MECÂNICO terá que cumprir quais requisitos?",
-     "opcoes": ["03 DIAS e 6 HORAS TRABALHADAS", "6 DIAS e 3 HORAS TRABALHADAS", "3 HORAS ou 6 DIAS TRABALHADAS"],
-     "correta": 0},
-    {"pergunta": "Quando precisar ficar AFK (indisponível por um breve período, como devo agir?",
-     "opcoes": ["Posso ficar em serviço, afinal retorno logo", "Avisar na rádio e depois retornar", "Sair do serviço, sair da rádio, tirar roupa de mecânico e sair da call 🧰 | ᴇᴍ sᴇʀᴠɪçᴏ, pois se for pego em serviço AFK serei advertido."],
-     "correta": 2},
-    {"pergunta": "Caso precise se ausentar na vida real como deve solicitar um atestado?",
-     "opcoes": ["Se precisar me ausentar, solicito um atestado no canal 📅┃ᴄᴏʟᴏᴄᴀʀ-ᴀᴛᴇsᴛᴀᴅᴏ. Se não cumpri as metas conseguirei pedir meu atestado.",
-                "Se precisar me ausentar, solicito um atestado no canal ❌┃ʀᴇᴍᴏᴠᴇʀ-ᴀᴛᴇsᴛᴀᴅᴏ. Se não cumpri as metas não conseguirei pedir meu atestado.",
-                "Se precisar me ausentar, solicito um atestado no canal 📅┃ᴄᴏʟᴏᴄᴀʀ-ᴀᴛᴇsᴛᴀᴅᴏ. Se não cumpri as metas não conseguirei pedir meu atestado."],
-     "correta": 2},
-    {"pergunta": "Como entrar em serviço corretamente?",
-     "opcoes": ["Ao iniciar o trabalho, ativar o comando toogle, entrar na call 🧰 | ᴇᴍ sᴇʀᴠɪçᴏ, colocar o uniforme e entrar na rádio na frequência 66.",
-                "Ao iniciar o trabalho, entrar na call 🧰 | ᴇᴍ sᴇʀᴠɪçᴏ, ativar o comando toogle e entrar na rádio na frequência 66.",
-                "Ao iniciar o trabalho, colocar o uniforme, entrar na call 🧰 | ᴇᴍ sᴇʀᴠɪçᴏ e ativar o comando toogle."],
-     "correta": 0},
-    {"pergunta": "Qual o modo correto de uso dos veículos da mecânica a seguir?",
-     "opcoes": ["É permitido usar os veículos da Mecânica para uso pessoal, desde que estejam no estacionamento sem uso.",
-                "É proibido usar os veículos da Mecânica para uso pessoal, mesmo que estejam no estacionamento sem uso",
-                "É proibido usar os veículos da Mecânica para uso pessoal. Se encontrar algum no estacionamento sem uso, guarde-o no Blip."],
-     "correta": 2},
-    {"pergunta": "Quais os valores do reparo?",
-     "opcoes": ["Dentro da Mecânica: R$ 4.000, Fora: R$5,000",
-                "Dentro da Mecânica: R$ 8.000, Fora: R$10,000",
-                "Dentro da Mecânica: R$ 5.000, Fora: R$4,000"],
-     "correta": 0},
-    {"pergunta": "Qual a forma correta de desvirar e consertar um carro?",
-     "opcoes": ["Mentalizar F9 e procurar no menu a opção desvirar e consertar o carro",
-                "Apenas escrever desvirar e consertar no F8 ou /desvirar e /consertar",
-                "Escrever consertar no F8"],
-     "correta": 1}
-]
-
-# Evento para registrar o clique no botão "REALIZAR PROVA"
-class ProvaView(View):
-    def __init__(self, bot, user):
-        super().__init__()
-        self.bot = bot
-        self.user = user
-
-    @discord.ui.button(label="Realizar Prova", style=discord.ButtonStyle.green)
-    async def realizar_prova(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.send_message("Iniciando sua prova!", ephemeral=True)
-        # Cria um canal temporário para a prova
-        overwrites = {
-            interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
-            interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
-            interaction.guild.get_role(cargo_visualizacao_1_id): discord.PermissionOverwrite(read_messages=True),
-            interaction.guild.get_role(cargo_visualizacao_2_id): discord.PermissionOverwrite(read_messages=True),
-            interaction.guild.get_role(cargo_prova_id): discord.PermissionOverwrite(read_messages=False)  # Não permite leitura do cargo_prova
-        }
-        channel = await interaction.guild.create_text_channel(f"prova-{interaction.user.display_name}", overwrites=overwrites)
-        await iniciar_prova(interaction.user, channel)
-
-# Função para iniciar a prova
-async def iniciar_prova(user, channel):
-    respostas = {}
-    pontuacao = 0
-
-    for questao in questoes_abertas:
-        embed = discord.Embed(title="Questão Aberta", description=f"{questao}", color=discord.Color.light_grey())
-        await channel.send(embed=embed)
-        try:
-            msg = await bot.wait_for('message', timeout=180.0, check=lambda m: m.author == user)
-            respostas[questao] = msg.content
-        except asyncio.TimeoutError:
-            respostas[questao] = "não respondida"
-            await channel.send("Tempo esgotado! Você precisará iniciar outra prova.")
-            await asyncio.sleep(10)
-            await channel.delete()
-            return
-        await channel.purge(limit=100)
-
-    for questao in questoes_fechadas:
-        opcoes_str = "\n".join([f"{i+1}. {opcao}" for i, opcao in enumerate(questao['opcoes'])])
-        embed = discord.Embed(title="Questão Fechada", description=f"{questao['pergunta']}\n\n{opcoes_str}", color=discord.Color.light_grey())
-        await channel.send(embed=embed)
-
-        class RespostaView(View):
-            def __init__(self, bot):
-                super().__init__()
-                self.bot = bot
-                self.resposta_usuario = None
-
-            @discord.ui.select(placeholder="Selecione sua resposta", options=[discord.SelectOption(label=f"Opção {i+1}", description=opcao[:100], value=str(i)) for i, opcao in enumerate(questao['opcoes'])])
-            async def select_callback(self, interaction: discord.Interaction, select: Select):
-                self.resposta_usuario = int(select.values[0])
-                await interaction.response.send_message(f"Você selecionou: {questao['opcoes'][self.resposta_usuario]}", ephemeral=True)
-                self.stop()
-
-        view = RespostaView(bot)
-        await channel.send("Selecione sua resposta:", view=view)
-
-        try:
-            await view.wait()
-            respostas[questao['pergunta']] = view.resposta_usuario
-            if view.resposta_usuario == questao['correta']:
-                pontuacao += 1
-        except asyncio.TimeoutError:
-            respostas[questao['pergunta']] = "não respondida"
-            await channel.send("Tempo esgotado! Você precisará iniciar outra prova.")
-            await asyncio.sleep(10)
-            await channel.delete()
-            return
-        await channel.purge(limit=100)
-
-    _corrigir_prova = bot.get_channel(canal_corrigir_prova_id)
-    if _corrigir_prova:
-        embed = discord.Embed(title="Relatório de Prova", color=discord.Color.light_grey())
-        embed.add_field(name="Prova realizada por", value=f"{user.mention} | {user.id}", inline=False)
-        embed.add_field(name="Pontuação", value=f"{pontuacao}/{len(questoes_fechadas)}", inline=False)
-
-        for questao in questoes_abertas:
-            embed.add_field(name=questao, value=f"R: {respostas.get(questao, 'não respondida')}", inline=False)
-
-        for questao in questoes_fechadas:
-            resposta_usuario = respostas.get(questao['pergunta'], "não respondida")
-            resposta_correta = questao['opcoes'][questao['correta']]
-            resposta_usuario_str = f"{int(resposta_usuario)+1}. {questao['opcoes'][int(resposta_usuario)]}" if resposta_usuario != "não respondida" else "não respondida"
-            embed.add_field(name=questao['pergunta'], value=f"Resposta do Usuário: {resposta_usuario_str}\nResposta Correta: {questao['correta']+1}. {resposta_correta}", inline=False)
-
-        embed.set_thumbnail(url="https://media.discordapp.net/attachments/1137047344903372941/1238973673671622666/marvel_gif_2.gif")
-        await _corrigir_prova.send(embed=embed)
-
-    await channel.send("Prova concluída! Contate um gerente. O canal será fechado em 10 segundos.")
-    await asyncio.sleep(10)
-    await channel.delete()
-
-# Função para enviar ou editar a mensagem inicial
-async def enviar_ou_editar_mensagem_inicial():
-    canal_prova_aluno = bot.get_channel(canal_prova_aluno_id)
-    if canal_prova_aluno:
-        # Procurar a mensagem inicial anterior
-        mensagem_inicial = None
-        async for message in canal_prova_aluno.history(limit=10):
-            if message.author == bot.user and message.embeds and message.embeds[0].title == "Benny's Originals: Prova":
-                mensagem_inicial = message
-                break
-
-        embed = discord.Embed(title="Benny's Originals: Prova", description="Você terá 3 minutos para iniciar a prova após clicar no botão.", color=discord.Color.light_grey())
-        embed.set_thumbnail(url="https://media.discordapp.net/attachments/1137047344903372941/1238973673671622666/marvel_gif_2.gif")
-        embed.set_image(url="https://media.discordapp.net/attachments/1144673895299952700/1225200092634550312/SEJABEMVINDO-ezgif.com-video-to-gif-converter.gif?width=815&height=140")
-        embed.set_footer(text="Faça sua parte e se junte a maior mecânica da cidade!")
-
-        view = ProvaView(bot, None)
-
-        if mensagem_inicial:
-            await mensagem_inicial.edit(embed=embed, view=view)
-        else:
-            await canal_prova_aluno.send(embed=embed, view=view)
-
-@tasks.loop(minutes=2)
-async def verificar_interacao():
-    await enviar_ou_editar_mensagem_inicial()
-
-#-----------FIM PROVA--------------
-
-# Função para buscar ou editar a mensagem de ranking
-async def buscar_ou_editar_mensagem_ranking(canal):
-    mensagem_ranking = None
-    async for message in canal.history(limit=10):
-        if message.author == bot.user and message.embeds and message.embeds[0].title == "👑 Ranking de Relatórios de Tunning":
-            mensagem_ranking = message
-            break
-    return mensagem_ranking
-
-# Função para carregar relatórios antigos
-async def carregar_relatorios_antigos(channel):
-    global relatorios
-    print(f"Carregando relatórios antigos entre {data_inicio} e {data_fim}...")
-    async for message in channel.history(after=data_inicio, before=data_fim, limit=None):  # Busca todas as mensagens dentro do período
-        print(f"Processando mensagem antiga: {message.content}")
-        await processar_relatorio(message, atualizacao_antiga=True)
-    print("Carregamento de relatórios antigos concluído.")
-
-# Função para processar um relatório (novo ou antigo)
-async def processar_relatorio(message, atualizacao_antiga=False):
-    global relatorios
-
-    # Criar dicionário de membros por ID (uma vez, no início da função)
-    membros_por_id = {membro.id: membro for membro in message.guild.members}
-
-    # Procura por números na mensagem que são IDs inteiros (não partes de outros números)
-    for id_match in re.finditer(r"\b\d+\b", message.content):
-        user_id = int(id_match.group(0))
-        for membro in membros_por_id.values():
-            if str(user_id) == membro.display_name.split()[-1]:  # Verifica se o nome de exibição termina com o ID
-                if any(cargo.id in cargos_desejados for cargo in membro.roles):
-                    relatorios[membro.id] = relatorios.get(membro.id, 0) + 1
-                    print(f"Relatório adicionado: {membro.display_name} agora tem {relatorios[membro.id]} relatórios")
-                break
-        else:
-            print(f"Erro: ID {user_id} não encontrado na lista de membros.")  # Mensagem de erro para ID não encontrado
-
-    if not atualizacao_antiga:
-        await exibir_ranking()  # Atualiza o ranking imediatamente se não for uma atualização antiga
-
-# Função para atualizar o ranking
-async def exibir_ranking():
-    global relatorios
-    global mensagem_ranking
-
-    # Buscar o canal correto para o ranking
-    channel = bot.get_channel(canal_ranking_id)
-    if not channel:
-        print("Erro: Canal de ranking não encontrado.")
-        return
-
-    # Buscar ou criar a mensagem de ranking
-    mensagem_ranking = await buscar_ou_editar_mensagem_ranking(channel)
-
-    # Buscar membros com os cargos desejados e seus totais de relatórios
-    membros_validos = []
-    for role_id in cargos_desejados:
-        role = channel.guild.get_role(role_id)
-        if role:
-            membros_validos.extend(role.members)
-
-    # Ordenar os membros pelo total de relatórios (decrescente)
-    membros_validos.sort(key=lambda membro: relatorios.get(membro.id, 0), reverse=True)
-
-    # Criar o ranking em formato de texto
-    ranking_str = ""
-    for i, membro in enumerate(membros_validos, start=1):
-        posicao = "🏆`1º`" if i == 1 else f"`{i}º`"
-        total_relatorios = relatorios.get(membro.id, 0)  # Obter o total de relatórios do membro
-        ranking_str += f"{posicao} - {membro.mention}: {total_relatorios} relatórios\n"
-
-    # Obter o horário atual no fuso horário de São Paulo
-    current_time = datetime.now(timezone_brasil).strftime('%H:%M:%S')
-
-    # Criar o embed do ranking
-    embed = discord.Embed(title="👑 Ranking de Relatórios de Tunning", description=ranking_str, color=0xffa500)
-    embed.set_thumbnail(url=channel.guild.icon.url)
-    embed.add_field(name="\u200b", value=f"**📬 Total de relatórios: {sum(relatorios.values())}**", inline=False)
-    embed.set_footer(text=f"📅 Desde\n`{data_inicio.strftime('%d %B')}` \n\n ⏰ Última atualização: {current_time}")
-
-    # Editar a mensagem existente ou enviar uma nova
-    try:
-        if mensagem_ranking:
-            # Tentativa de editar a mensagem existente
-            await mensagem_ranking.edit(embed=embed)
-        else:
-            # Enviar uma nova mensagem se mensagem_ranking não existir
-            mensagem_ranking = await channel.send(embed=embed)
-    except discord.errors.NotFound:
-        # Enviar uma nova mensagem se a mensagem existente não for encontrada (foi deletada)
-        mensagem_ranking = await channel.send(embed=embed)
-    except discord.errors.HTTPException as e:
-        print(f"Erro ao atualizar o ranking: {e}")
-
-# Evento para registrar relatórios
-@bot.event
-async def on_message(message):
-    if message.channel.id == canal_relat_tunning_id:  # Canal #relat-tunning
-        # Converter a data da mensagem para offset-aware (UTC) e ajustar para o fuso horário de São Paulo
-        message_created_at_aware = message.created_at.replace(tzinfo=timezone.utc).astimezone(timezone_brasil)
-        if data_inicio <= message_created_at_aware < data_fim:
-            await processar_relatorio(message)
-
-    await bot.process_commands(message)
-
-# Evento para reduzir a contagem de relatórios se a mensagem for apagada
-@bot.event
-async def on_message_delete(message):
-    if message.channel.id == canal_relat_tunning_id:  # Canal #relat-tunning
-        await processar_relatorio_remocao(message)
-
-# Evento para atualizar a contagem de relatórios se a mensagem for editada
-@bot.event
-async def on_message_edit(before, after):
-    if before.channel.id == canal_relat_tunning_id:  # Canal #relat-tunning
-        await processar_relatorio_remocao(before)
-        await processar_relatorio(after)
-
-# Função para processar a remoção de um relatório
-async def processar_relatorio_remocao(message):
-    global relatorios
-
-    # Criar dicionário de membros por ID (uma vez, no início da função)
-    membros_por_id = {membro.id: membro for membro in message.guild.members}
-
-    # Procura por números na mensagem que são IDs inteiros (não partes de outros números)
-    for id_match in re.finditer(r"\b\d+\b", message.content):
-        user_id = int(id_match.group(0))
-        for membro in membros_por_id.values():
-            if str(user_id) == membro.display_name.split()[-1]:  # Verifica se o nome de exibição termina com o ID
-                if any(cargo.id in cargos_desejados for cargo in membro.roles):
-                    relatorios[membro.id] = relatorios.get(membro.id, 0) - 1
-                    if relatorios[membro.id] < 0:
-                        relatorios[membro.id] = 0  # Garante que a contagem não seja negativa
-                    print(f"Relatório removido: {membro.display_name} agora tem {relatorios[membro.id]} relatórios")
-                break
-        else:
-            print(f"Erro: ID {user_id} não encontrado na lista de membros.")  # Mensagem de erro para ID não encontrado
-
-    await exibir_ranking()  # Atualiza o ranking imediatamente
-
-# Classe do bot
-class MyBot(commands.Bot):
-    def __init__(self):
-        super().__init__(command_prefix='/', intents=discord.Intents.all())
-
-    async def setup_hook(self):
-        await self.tree.sync()
-
-bot = MyBot()
-
-#eventos de desconxeão e retomada
-
-@bot.event
-async def on_disconnect():
-    logging.warning('Bot desconectado! Tentando reconectar...')
-
-@bot.event
-async def on_resumed():
-    logging.info('Conexão retomada com sucesso!')
-
-# Função de verificação de permissões
-async def has_allowed_role(interaction: discord.Interaction) -> bool:
-    user_roles = [role.id for role in interaction.user.roles]
-    return any(role in allowed_roles for role in user_roles)
+# ID do canal de consulta
+consultar_horas_id = 1246990807140007997
 
 @bot.tree.command(name="tempo", description="Consultar o tempo em serviço de um usuário pelo ID ou menção.")
 @app_commands.describe(user="ID ou menção do usuário a ser consultado")
@@ -515,9 +179,6 @@ async def mensagem_error(interaction: discord.Interaction, error):
     else:
         await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
         print(f"Erro no comando /mensagem: {error}")
-
-
-
 
 #   comando /dm
 @tree.command(name="dm", description="Enviar mensagem privada para um usuário específico.")
@@ -839,140 +500,322 @@ async def exonerar_error(interaction: discord.Interaction, error):
         await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
         print(f"Erro no comando /exonerar: {error}")
 
-@bot.tree.command(name="consultarelat", description="Consulta relatórios de um usuário em um período.")
-@app_commands.describe(user="Usuário a ser consultado", data_inicio="Data de início (DD/MM/YYYY)", data_fim="Data de fim (DD/MM/YYYY)")
-async def consultarelat(interaction: discord.Interaction, user: discord.User, data_inicio: str, data_fim: str):
-    # Verificar permissões
-    if not await has_allowed_role(interaction):
-        await interaction.response.send_message("Você não tem permissão para usar este comando.", ephemeral=True)
-        return
-
-    try:
-        # Converte as datas de string para objetos datetime
-        data_inicio_dt = datetime.strptime(data_inicio, "%d/%m/%Y")
-        data_fim_dt = datetime.strptime(data_fim, "%d/%m/%Y")
-    except ValueError:
-        await interaction.response.send_message("Formato de data inválido. Use DD/MM/YYYY.", ephemeral=True)
-        return
-
-    # Variável para contar os relatórios dentro do período
-    total_relatorios = 0
-
-    # Canal #relat-tunning
-    canal_relatorios = bot.get_channel(1235035965945413649)
-
-    if not canal_relatorios:
-        await interaction.response.send_message("Erro: Canal de relatórios não encontrado.", ephemeral=True)
-        return
-
-    # Busca de mensagens no canal dentro do período
-    async for message in canal_relatorios.history(after=data_inicio_dt, before=data_fim_dt):
-        if message.author == user:
-            total_relatorios += 1
-
-    await interaction.response.send_message(f"{user.mention} fez {total_relatorios} relatórios de {data_inicio} a {data_fim}.")
-
 # Fim do código dos comandos /slash
 
-# ------------------------------------------------------------------------------FIM RANK RELATÓRIOS---------------------------------------
 
+# Questões do exame // --------------------------- FIM DOS COMANDOS /SLASH ---------------------------------
+
+#---------------------------------------------------------------PROVA--------------------------------------------------------
+
+questoes_abertas = [
+    "Por que quer ser mecânico?",
+    "Seu nome na cidade?",
+    "Idade em Nárnia?",
+    "ID na cidade?",
+    "ID de quem o recrutou?"
+]
+
+questoes_fechadas = [
+    {"pergunta": "Para ser promovido de ESTAGIARIO para MECÂNICO terá que cumprir quais requisitos?",
+     "opcoes": ["03 DIAS e 6 HORAS TRABALHADAS", "6 DIAS e 3 HORAS TRABALHADAS", "3 HORAS ou 6 DIAS TRABALHADAS"],
+     "correta": 0},
+    {"pergunta": "Quando precisar ficar AFK (indisponível por um breve período, como devo agir?",
+     "opcoes": ["Posso ficar em serviço, afinal retorno logo", "Avisar na rádio e depois retornar", "Sair do serviço, sair da rádio, tirar roupa de mecânico e sair da call 🧰 | ᴇᴍ sᴇʀᴠɪçᴏ, pois se for pego em serviço AFK serei advertido."],
+     "correta": 2},
+    {"pergunta": "Caso precise se ausentar na vida real como deve solicitar um atestado?",
+     "opcoes": ["Se precisar me ausentar, solicito um atestado no canal 📅┃ᴄᴏʟᴏᴄᴀʀ-ᴀᴛᴇsᴛᴀᴅᴏ. Se não cumpri as metas conseguirei pedir meu atestado.",
+                "Se precisar me ausentar, solicito um atestado no canal ❌┃ʀᴇᴍᴏᴠᴇʀ-ᴀᴛᴇsᴛᴀᴅᴏ. Se não cumpri as metas não conseguirei pedir meu atestado.",
+                "Se precisar me ausentar, solicito um atestado no canal 📅┃ᴄᴏʟᴏᴄᴀʀ-ᴀᴛᴇsᴛᴀᴅᴏ. Se não cumpri as metas não conseguirei pedir meu atestado."],
+     "correta": 2},
+    {"pergunta": "Como entrar em serviço corretamente?",
+     "opcoes": ["Ao iniciar o trabalho, ativar o comando toogle, entrar na call 🧰 | ᴇᴍ sᴇʀᴠɪçᴏ, colocar o uniforme e entrar na rádio na frequência 66.",
+                "Ao iniciar o trabalho, entrar na call 🧰 | ᴇᴍ sᴇʀᴠɪçᴏ, ativar o comando toogle e entrar na rádio na frequência 66.",
+                "Ao iniciar o trabalho, colocar o uniforme, entrar na call 🧰 | ᴇᴍ sᴇʀᴠɪçᴏ e ativar o comando toogle."],
+     "correta": 0},
+    {"pergunta": "Qual o modo correto de uso dos veículos da mecânica a seguir?",
+     "opcoes": ["É permitido usar os veículos da Mecânica para uso pessoal, desde que estejam no estacionamento sem uso.",
+                "É proibido usar os veículos da Mecânica para uso pessoal, mesmo que estejam no estacionamento sem uso",
+                "É proibido usar os veículos da Mecânica para uso pessoal. Se encontrar algum no estacionamento sem uso, guarde-o no Blip."],
+     "correta": 2},
+    {"pergunta": "Quais os valores do reparo?",
+     "opcoes": ["Dentro da Mecânica: R$ 4.000, Fora: R$5,000",
+                "Dentro da Mecânica: R$ 8.000, Fora: R$10,000",
+                "Dentro da Mecânica: R$ 5.000, Fora: R$4,000"],
+     "correta": 0},
+    {"pergunta": "Qual a forma correta de desvirar e consertar um carro?",
+     "opcoes": ["Mentalizar F9 e procurar no menu a opção desvirar e consertar o carro",
+                "Apenas escrever desvirar e consertar no F8 ou /desvirar e /consertar",
+                "Escrever consertar no F8"],
+     "correta": 1}
+]
+
+# Evento para registrar o clique no botão "REALIZAR PROVA"
+class ProvaView(View):
+    def __init__(self, bot, user):
+        super().__init__()
+        self.bot = bot
+        self.user = user
+
+    @discord.ui.button(label="Realizar Prova", style=discord.ButtonStyle.green)
+    async def realizar_prova(self, interaction: discord.Interaction, button: Button):
+        await interaction.response.send_message("Iniciando sua prova!", ephemeral=True)
+        # Cria um canal temporário para a prova
+        overwrites = {
+            interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+            interaction.guild.get_role(cargo_visualizacao_1_id): discord.PermissionOverwrite(read_messages=True),
+            interaction.guild.get_role(cargo_visualizacao_2_id): discord.PermissionOverwrite(read_messages=True),
+            interaction.guild.get_role(cargo_prova_id): discord.PermissionOverwrite(read_messages=False)  # Não permite leitura do cargo_prova
+        }
+        channel = await interaction.guild.create_text_channel(f"prova-{interaction.user.display_name}", overwrites=overwrites)
+        await iniciar_prova(interaction.user, channel)
+
+# Função para iniciar a prova
+async def iniciar_prova(user, channel):
+    respostas = {}
+    pontuacao = 0
+
+    for questao in questoes_abertas:
+        embed = discord.Embed(title="Questão Aberta", description=f"{questao}", color=discord.Color.light_grey())
+        await channel.send(embed=embed)
+        try:
+            msg = await bot.wait_for('message', timeout=180.0, check=lambda m: m.author == user)
+            respostas[questao] = msg.content
+        except asyncio.TimeoutError:
+            respostas[questao] = "não respondida"
+            await channel.send("Tempo esgotado! Você precisará iniciar outra prova.")
+            await asyncio.sleep(10)
+            await channel.delete()
+            return
+        await channel.purge(limit=100)
+
+    for questao in questoes_fechadas:
+        opcoes_str = "\n".join([f"{i+1}. {opcao}" for i, opcao in enumerate(questao['opcoes'])])
+        embed = discord.Embed(title="Questão Fechada", description=f"{questao['pergunta']}\n\n{opcoes_str}", color=discord.Color.light_grey())
+        await channel.send(embed=embed)
+
+        class RespostaView(View):
+            def __init__(self, bot):
+                super().__init__()
+                self.bot = bot
+                self.resposta_usuario = None
+
+            @discord.ui.select(placeholder="Selecione sua resposta", options=[discord.SelectOption(label=f"Opção {i+1}", description=opcao[:100], value=str(i)) for i, opcao in enumerate(questao['opcoes'])])
+            async def select_callback(self, interaction: discord.Interaction, select: Select):
+                self.resposta_usuario = int(select.values[0])
+                await interaction.response.send_message(f"Você selecionou: {questao['opcoes'][self.resposta_usuario]}", ephemeral=True)
+                self.stop()
+
+        view = RespostaView(bot)
+        await channel.send("Selecione sua resposta:", view=view)
+
+        try:
+            await view.wait()
+            respostas[questao['pergunta']] = view.resposta_usuario
+            if view.resposta_usuario == questao['correta']:
+                pontuacao += 1
+        except asyncio.TimeoutError:
+            respostas[questao['pergunta']] = "não respondida"
+            await channel.send("Tempo esgotado! Você precisará iniciar outra prova.")
+            await asyncio.sleep(10)
+            await channel.delete()
+            return
+        await channel.purge(limit=100)
+
+    _corrigir_prova = bot.get_channel(canal_corrigir_prova_id)
+    if _corrigir_prova:
+        embed = discord.Embed(title="Relatório de Prova", color=discord.Color.light_grey())
+        embed.add_field(name="Prova realizada por", value=f"{user.mention} | {user.id}", inline=False)
+        embed.add_field(name="Pontuação", value=f"{pontuacao}/{len(questoes_fechadas)}", inline=False)
+
+        for questao in questoes_abertas:
+            embed.add_field(name=questao, value=f"R: {respostas.get(questao, 'não respondida')}", inline=False)
+
+        for questao in questoes_fechadas:
+            resposta_usuario = respostas.get(questao['pergunta'], "não respondida")
+            resposta_correta = questao['opcoes'][questao['correta']]
+            resposta_usuario_str = f"{int(resposta_usuario)+1}. {questao['opcoes'][int(resposta_usuario)]}" if resposta_usuario != "não respondida" else "não respondida"
+            embed.add_field(name=questao['pergunta'], value=f"Resposta do Usuário: {resposta_usuario_str}\nResposta Correta: {questao['correta']+1}. {resposta_correta}", inline=False)
+
+        embed.set_thumbnail(url="https://media.discordapp.net/attachments/1137047344903372941/1238973673671622666/marvel_gif_2.gif")
+        await _corrigir_prova.send(embed=embed)
+
+    await channel.send("Prova concluída! Contate um gerente. O canal será fechado em 10 segundos.")
+    await asyncio.sleep(10)
+    await channel.delete()
+
+# Função para enviar ou editar a mensagem inicial
+async def enviar_ou_editar_mensagem_inicial():
+    canal_prova_aluno = bot.get_channel(canal_prova_aluno_id)
+    if canal_prova_aluno:
+        # Procurar a mensagem inicial anterior
+        mensagem_inicial = None
+        async for message in canal_prova_aluno.history(limit=10):
+            if message.author == bot.user and message.embeds and message.embeds[0].title == "Benny's Originals: Prova":
+                mensagem_inicial = message
+                break
+
+        embed = discord.Embed(title="Benny's Originals: Prova", description="Você terá 3 minutos para iniciar a prova após clicar no botão.", color=discord.Color.light_grey())
+        embed.set_thumbnail(url="https://media.discordapp.net/attachments/1137047344903372941/1238973673671622666/marvel_gif_2.gif")
+        embed.set_image(url="https://media.discordapp.net/attachments/1144673895299952700/1225200092634550312/SEJABEMVINDO-ezgif.com-video-to-gif-converter.gif?width=815&height=140")
+        embed.set_footer(text="Faça sua parte e se junte a maior mecânica da cidade!")
+
+        view = ProvaView(bot, None)
+
+        if mensagem_inicial:
+            await mensagem_inicial.edit(embed=embed, view=view)
+        else:
+            await canal_prova_aluno.send(embed=embed, view=view)
+
+@tasks.loop(minutes=2)
+async def verificar_interacao():
+    await enviar_ou_editar_mensagem_inicial()
+#-----------------------------------------------------------------FIM PROVA------------------------------------------------------------------
+
+# -------------------------------------------RANKING RELATÓRIOS---------------------------------------------------
+
+async def buscar_mensagem_ranking(canal):
+    async for mensagem in canal.history(limit=100):
+        if mensagem.author == bot.user and mensagem.embeds and mensagem.embeds[0].title == "👑 Ranking de Relatórios de Tunning":
+            return mensagem
+    return None
+
+async def carregar_relatorios_antigos(channel):
+    global relatorios
+    print(f"Carregando relatórios antigos entre {data_inicio} e {data_fim}...")
+    async for message in channel.history(after=data_inicio, before=data_fim, limit=None):  # Busca todas as mensagens dentro do período
+        print(f"Processando mensagem antiga: {message.content}")
+        await processar_relatorio(message, atualizacao_antiga=True)
+    print("Carregamento de relatórios antigos concluído.")
+
+# Função para processar um relatório (novo ou antigo)
+async def processar_relatorio(message, atualizacao_antiga=False):
+    global relatorios
+
+    # Criar dicionário de membros por ID (uma vez, no início da função)
+    membros_por_id1 = {membro.id: membro for membro in message.guild.members}
+
+    # Procura por números na mensagem que são IDs inteiros (não partes de outros números)
+    for id_match in re.finditer(r"\b\d+\b", message.content):
+        user_id = int(id_match.group(0))
+        for membro in membros_por_id1.values():
+            if str(user_id) == membro.display_name.split()[-1]:  # Verifica se o nome de exibição termina com o ID
+                if any(cargo.id in cargos_desejados for cargo in membro.roles):
+                    relatorios[membro.id] = relatorios.get(membro.id, 0) + 1
+                    print(f"Relatório adicionado: {membro.display_name} agora tem {relatorios[membro.id]} relatórios")
+                break
+        else:
+            print(f"Erro: ID {user_id} não encontrado na lista de membros.")  # Mensagem de erro para ID não encontrado
+
+    if not atualizacao_antiga:
+        await exibir_ranking()  # Atualiza o ranking imediatamente se não for uma atualização antiga
+
+# Função para atualizar o ranking
+async def exibir_ranking():
+    global relatorios
+    global mensagem_ranking
+
+    # Buscar o canal correto para o ranking
+    channel = bot.get_channel(canal_ranking_id)
+
+    if not channel:
+        print("Erro: Canal de ranking não encontrado.")
+        return
+
+    # Buscar membros com os cargos desejados e seus totais de relatórios
+    membros_validos = []
+    for role_id in cargos_desejados:
+        role = channel.guild.get_role(role_id)
+        if role:
+            membros_validos.extend(role.members)
+
+    # Ordenar os membros pelo total de relatórios (decrescente)
+    membros_validos.sort(key=lambda membro: relatorios.get(membro.id, 0), reverse=True)
+
+    # Criar o ranking em formato de texto
+    ranking_str = ""
+    for i, membro in enumerate(membros_validos, start=1):
+        posicao = "🏆`º`" if i == 1 else f"`{i}º`"
+        total_relatorios = relatorios.get(membro.id, 0)  # Obter o total de relatórios do membro
+        ranking_str += f"{posicao} - {membro.mention}: {total_relatorios} relatórios\n"
+
+    # Obter o horário atual no fuso horário de São Paulo
+    current_time = datetime.now(timezone_brasil).strftime('%H:%M:%S')
+
+    # Criar o embed do ranking
+    embed = discord.Embed(title="👑 Ranking de Relatórios de Tunning", description=ranking_str, color=0xffa500)
+    embed.set_thumbnail(url=channel.guild.icon.url)
+    embed.add_field(name="\u200b", value=f"**📬 Total de relatórios: {sum(relatorios.values())}**", inline=False)
+    embed.set_footer(text=f"📅 Desde\n`{data_inicio.strftime('%d %B')}` \n\n ⏰ Última atualização: {current_time}")
+
+    # Editar a mensagem existente ou enviar uma nova
+    try:
+        if mensagem_ranking:
+            # Tentativa de editar a mensagem existente
+            await mensagem_ranking.edit(embed=embed)
+        else:
+            # Enviar uma nova mensagem se mensagem_ranking não existir
+            mensagem_ranking = await channel.send(embed=embed)
+    except discord.errors.NotFound:
+        # Enviar uma nova mensagem se a mensagem existente não for encontrada (foi deletada)
+        mensagem_ranking = await channel.send(embed=embed)
+    except discord.errors.HTTPException as e:
+        print(f"Erro ao atualizar o ranking: {e}")
+
+# Evento para registrar relatórios
+@bot.event
+async def on_message(message):
+    if message.channel.id == 1235035965945413649:  # Canal #relat-tunning
+        # Converter a data da mensagem para offset-aware (UTC) e ajustar para o fuso horário de São Paulo
+        message_created_at_aware = message.created_at.replace(tzinfo=timezone.utc).astimezone(timezone_brasil)
+        if data_inicio <= message_created_at_aware < data_fim:
+            await processar_relatorio(message)
+
+    await bot.process_commands(message)
+
+# Evento para reduzir a contagem de relatórios se a mensagem for apagada
+@bot.event
+async def on_message_delete(message):
+    if message.channel.id == 1235035965945413649:  # Canal #relat-tunning
+        await processar_relatorio_remocao(message)
+
+# Evento para atualizar a contagem de relatórios se a mensagem for editada
+@bot.event
+async def on_message_edit(before, after):
+    if before.channel.id == 1235035965945413649:  # Canal #relat-tunning
+        await processar_relatorio_remocao(before)
+        await processar_relatorio(after)
+
+# Função para processar a remoção de um relatório
+async def processar_relatorio_remocao(message):
+    global relatorios
+
+    # Criar dicionário de membros por ID (uma vez, no início da função)
+    membros_por_id1 = {membro.id: membro for membro in message.guild.members}
+
+    # Procura por números na mensagem que são IDs inteiros (não partes de outros números)
+    for id_match in re.finditer(r"\b\d+\b", message.content):
+        user_id = int(id_match.group(0))
+        for membro in membros_por_id1.values():
+            if str(user_id) == membro.display_name.split()[-1]:  # Verifica se o nome de exibição termina com o ID
+                if any(cargo.id in cargos_desejados for cargo in membro.roles):
+                    relatorios[membro.id] = relatorios.get(membro.id, 0) - 1
+                    if relatorios[membro.id] < 0:
+                        relatorios[membro.id] = 0  # Garante que a contagem não seja negativa
+                    print(f"Relatório removido: {membro.display_name} agora tem {relatorios[membro.id]} relatórios")
+                break
+        else:
+            print(f"Erro: ID {user_id} não encontrado na lista de membros.")  # Mensagem de erro para ID não encontrado
+
+    await exibir_ranking()  # Atualiza o ranking imediatamente
+
+
+# ------------------------------------------------------------------------------FIM RANK RELATÓRIOS---------------------------------------
 # Tarefa para salvar dados periodicamente
 @tasks.loop(minutes=5)  # Ajuste o intervalo conforme necessário
 async def salvar_dados():
     with open(relatorios_path, 'w') as f:
         json.dump(relatorios, f)
-
-#devedores canal
-
-# Função para enviar ou editar a mensagem inicial da hierarquia
-async def enviar_ou_editar_mensagem_inicial_hierarquia():
-    global hierarchy_message_id
-    guild = bot.guilds[0]
-    channel = bot.get_channel(channel_id)
-
-# Função para construir a hierarquia de devedores
-async def build_hierarchy(guild):
-    hierarchy_text = "**# Hierarquia: Devedores ⛔**\n"
-    for role_name, role_id in roles_ids.items():
-        role = get(guild.roles, id=role_id)
-        if role:
-            members_with_role = role.members
-            hierarchy_text += f"# {role.mention} : {len(members_with_role)}\n"
-            for member in members_with_role:
-                hierarchy_text += f"{member.mention}\n"
-    return hierarchy_text
-
-# Função para enviar ou editar a mensagem inicial da hierarquia
-async def enviar_ou_editar_mensagem_inicial_hierarquia():
-    global hierarchy_message_id
-    guild = bot.guilds[0]
-    channel = bot.get_channel(channel_id)
-
-    if not channel:
-        print("Erro: Canal de devedores não encontrado.")
-        return
-
-    hierarchy_text = await build_hierarchy(guild)
-
-    try:
-        if hierarchy_message_id is None:
-            # Procurar pela mensagem existente no canal
-            async for message in channel.history(limit=10):
-                if message.author == bot.user and "**# Hierarquia: Devedores ⛔**" in message.content:
-                    hierarchy_message_id = message.id
-                    break
-
-        if hierarchy_message_id is None:
-            # Enviar nova mensagem se não encontrada
-            message = await channel.send(hierarchy_text)
-            hierarchy_message_id = message.id
-        else:
-            # Editar a mensagem existente
-            message = await channel.fetch_message(hierarchy_message_id)
-            await message.edit(content=hierarchy_text)
-    except discord.errors.NotFound:
-        # Enviar nova mensagem se a mensagem não for encontrada ao buscar
-        message = await channel.send(hierarchy_text)
-        hierarchy_message_id = message.id
-    except discord.errors.Forbidden:
-        print("Erro: O bot não tem permissão para enviar ou editar mensagens no canal.")
-
-# Evento on_member_update para atualizar a hierarquia dinamicamente
-@bot.event
-async def on_member_update(before, after):
-    global hierarchy_message_id
-    guild = after.guild
-    channel = bot.get_channel(channel_id)
-    
-    # Verificar se houve mudança nos cargos do membro
-    if before.roles != after.roles:
-        try:
-            print(f"Atualizando hierarquia para {after.name}")
-            hierarchy_text = await build_hierarchy(guild)
-            
-            if hierarchy_message_id is not None:
-                try:
-                    message = await channel.fetch_message(hierarchy_message_id)
-                    await message.edit(content=hierarchy_text)
-                    print(f"Mensagem de hierarquia atualizada para {after.name}")
-                except discord.NotFound:
-                    print("Mensagem de hierarquia não encontrada. Criando uma nova mensagem.")
-                    hierarchy_message = await channel.send(hierarchy_text)
-                    hierarchy_message_id = hierarchy_message.id
-                    print(f"Nova mensagem de hierarquia criada com ID {hierarchy_message_id}")
-            else:
-                print("Nenhuma mensagem de hierarquia existente. Criando uma nova mensagem.")
-                hierarchy_message = await channel.send(hierarchy_text)
-                hierarchy_message_id = hierarchy_message.id
-                print(f"Nova mensagem de hierarquia criada com ID {hierarchy_message_id}")
-        except Exception as e:
-            print(f"Erro ao atualizar a hierarquia: {e}")
-# fim bot canal devedores
-
-# Evento on_error para capturar erros e evitar execução duplicada
-@bot.event
-async def on_error(event_method, *args, **kwargs):
-    print(f"Erro em {event_method}: {args} {kwargs}")
 
 # Evento para registrar saídas de membros
 @bot.event
@@ -996,9 +839,37 @@ async def on_member_remove(member):
     if channel:
         await channel.send(embed=embed)
 
+channel_id = 1255178131707265066
+hierarchy_message_id = None  # Variável para armazenar o ID da mensagem de hierarquia
+
+# Função para construir a hierarquia de devedores
+async def build_hierarchy(guild):
+    hierarchy_text = "** # Hierarquia: Devedores ⛔**\n"
+    for role_name, role_id in roles_ids.items():
+        role = get(guild.roles, id=role_id)
+        members_with_role = role.members
+        hierarchy_text += f"# {role.mention} : {len(members_with_role)}\n"
+        for member in members_with_role:
+            hierarchy_text += f"{member.mention}\n"
+    return hierarchy_text
+
+# Evento on_member_update para atualizar a hierarquia dinamicamente
+@bot.event
+async def on_member_update(before, after):
+    global hierarchy_message_id
+    guild = after.guild
+    channel = bot.get_channel(channel_id)
+    
+    # Verificar se houve mudança nos cargos do membro
+    if before.roles != after.roles:
+        hierarchy_text = await build_hierarchy(guild)
+        
+        if hierarchy_message_id is not None:
+            message = await channel.fetch_message(hierarchy_message_id)
+            await message.edit(content=hierarchy_text)
+
     #~~~~~~~~~~~~~~~~~~~~---------------------------BOT DE HORAS-----------------------------~~~~~~~~~~~~~~~~~~~~
 
-# Criação da tabela de serviço
 def create_table():
     conn = sqlite3.connect('horas_servico.db')
     c = conn.cursor()
@@ -1013,7 +884,6 @@ def create_table():
     conn.commit()
     conn.close()
 
-# Salvar dados em arquivo
 def salvar_dados_em_arquivo():
     conn = sqlite3.connect('horas_servico.db')
     c = conn.cursor()
@@ -1024,35 +894,26 @@ def salvar_dados_em_arquivo():
     with open('backup_horas_servico.json', 'w') as f:
         json.dump(registros, f)
 
-# Atualizar horas de serviço
 @tasks.loop(minutes=1)
 async def atualizar_horas_servico():
-    print("Iniciando atualização das horas de serviço...")
     conn = sqlite3.connect('horas_servico.db')
     c = conn.cursor()
     for guild in bot.guilds:
-        print(f"Verificando guilda: {guild.name}")
         for canal_id in canais_voz_ids:
             canal = guild.get_channel(canal_id)
             if canal:
-                print(f"Verificando canal: {canal.name}")
                 for membro in canal.members:
-                    print(f"Verificando membro: {membro.name}")
                     c.execute('SELECT * FROM horas_servico WHERE user_id=? AND canal_id=? AND data_fim IS NULL', (membro.id, canal_id))
                     registro = c.fetchone()
                     if registro:
-                        print(f"Atualizando tempo de serviço para {membro.name}")
                         tempo_servico = int((datetime.now(timezone.utc) - datetime.fromisoformat(registro[5]).replace(tzinfo=timezone.utc)).total_seconds())
                         c.execute('UPDATE horas_servico SET tempo_servico=? WHERE id=?', (tempo_servico, registro[0]))
                     else:
-                        print(f"Inserindo novo registro para {membro.name}")
                         c.execute('INSERT INTO horas_servico (user_id, user_name, canal_id, tempo_servico, data_inicio) VALUES (?, ?, ?, ?, ?)', 
                                   (membro.id, str(membro), canal_id, 0, datetime.now(timezone.utc).isoformat()))
                     conn.commit()
     conn.close()
-    print("Atualização das horas de serviço concluída.")
 
-# Calcular tempo de serviço
 def calcular_tempo_servico(user_id):
     conn = sqlite3.connect('horas_servico.db')
     c = conn.cursor()
@@ -1061,7 +922,6 @@ def calcular_tempo_servico(user_id):
     conn.close()
     return tempo_total if tempo_total else 0
 
-# Calcular posição no ranking
 def calcular_posicao_ranking(user_id):
     conn = sqlite3.connect('horas_servico.db')
     c = conn.cursor()
@@ -1073,47 +933,19 @@ def calcular_posicao_ranking(user_id):
             return posicao
     return None
 
-# Formatar tempo
 def formatar_tempo(segundos):
     horas = segundos // 3600
     minutos = (segundos % 3600) // 60
     segundos = segundos % 60
     return f"{horas}h {minutos}m {segundos}s"
 
-# Buscar mensagem de consulta
-async def buscar_mensagem_consulta(canal):
-    async for mensagem in canal.history(limit=10):
-        if mensagem.author == bot.user and "Consulta horas" in mensagem.embeds[0].title:
-            return mensagem
-    return None
-
-# Enviar ou editar mensagem de consulta
-async def enviar_mensagem_consulta():
-    channel = bot.get_channel(consultar_horas_id)
-    embed = discord.Embed(title="⏰ | Consulta horas - 🛠️・Benny's - Originals", color=discord.Color.orange())
-    embed.description = (
-        "Para consultar as horas basta clicar no botão abaixo \"CONSULTAR HORAS\".\n\n"
-        "⏰ **Consulta** horas Totais.\n"
-        "📊 **Consulta** sua posição no ranking.\n"
-        "📊 **Consulta** Top 15 em horas.\n\n"
-    )
-    embed.set_footer(text="© Copyright |🛠・Benny's - Originals")
-    
-    view = ConsultaView()
-
-    mensagem_consulta = await buscar_mensagem_consulta(channel)
-    if mensagem_consulta:
-        await mensagem_consulta.edit(embed=embed, view=view)
-    else:
-        await channel.send(embed=embed, view=view)
-
 # Botões de consulta de horas e ranking
-class ConsultaView(discord.ui.View):
+class ConsultaView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
     @discord.ui.button(label="⏰ CONSULTAR HORAS", style=discord.ButtonStyle.primary)
-    async def consultar_horas(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def consultar_horas(self, interaction: discord.Interaction, button: Button):
         user_id = interaction.user.id
         tempo_total = calcular_tempo_servico(user_id)
         ranking = calcular_posicao_ranking(user_id)
@@ -1131,7 +963,7 @@ class ConsultaView(discord.ui.View):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @discord.ui.button(label="📊 CONSULTAR RANKING", style=discord.ButtonStyle.primary)
-    async def consultar_ranking(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def consultar_ranking(self, interaction: discord.Interaction, button: Button):
         conn = sqlite3.connect('horas_servico.db')
         c = conn.cursor()
         c.execute('SELECT user_id, SUM(tempo_servico) as total_tempo FROM horas_servico GROUP BY user_id ORDER BY total_tempo DESC LIMIT 15')
@@ -1149,16 +981,42 @@ class ConsultaView(discord.ui.View):
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# Salvar dados periodicamente
+async def buscar_mensagem_consulta(canal):
+    async for mensagem in canal.history(limit=100):
+        if mensagem.author == bot.user and "Consulta horas" in mensagem.embeds[0].title:
+            return mensagem
+    return None
+
+# Início da mensagem de consulta
+async def enviar_mensagem_consulta():
+    channel = bot.get_channel(consultar_horas_id)
+    embed = discord.Embed(title="⏰ | Consulta horas - 🛠️・Benny's - Originals", color=discord.Color.orange())
+    embed.description = (
+        "Para consultar as horas basta clicar no botão abaixo \"CONSULTAR HORAS\".\n\n"
+        "⏰ **Consulta** horas Totais.\n"
+        "📊 **Consulta** sua posição no ranking.\n"
+        "📊 **Consulta** Top 15 em horas.\n\n"
+    )
+    embed.set_footer(text="© Copyright |🛠・Benny's - Originals")
+    
+    view = ConsultaView()
+
+    # Buscar a mensagem existente ou enviar uma nova
+    mensagem_consulta = await buscar_mensagem_consulta(channel)
+    if mensagem_consulta:
+        await mensagem_consulta.edit(embed=embed, view=view)
+    else:
+        await channel.send(embed=embed, view=view)
+
 @tasks.loop(minutes=10)
 async def salvar_dados():
     salvar_dados_em_arquivo()
 
-# Carregar dados de arquivo
 def carregar_dados_de_arquivo():
     try:
         with open('backup_horas_servico.json', 'r') as f:
             registros = json.load(f)
+
         conn = sqlite3.connect('horas_servico.db')
         c = conn.cursor()
         c.executemany('INSERT OR REPLACE INTO horas_servico VALUES (?, ?, ?, ?, ?, ?, ?)', registros)
@@ -1167,46 +1025,26 @@ def carregar_dados_de_arquivo():
     except FileNotFoundError:
         print("Nenhum backup encontrado. Iniciando sem dados de backup.")
 
-# Exibir ranking de horas no log de comando
-async def exibir_ranking_horas():
-    conn = sqlite3.connect('horas_servico.db')
-    c = conn.cursor()
-    c.execute('SELECT user_id, SUM(tempo_servico) as total_tempo FROM horas_servico GROUP BY user_id ORDER BY total_tempo DESC')
-    ranking = c.fetchall()
-    conn.close()
-
-    ranking_str = "⏰ | Ranking de Horas Totais Trabalhadas\n\n"
-    for idx, (user_id, tempo_total) in enumerate(ranking, start=1):
-        user = bot.get_user(user_id)
-        if user:
-            tempo_formatado = formatar_tempo(tempo_total)
-            ranking_str += f"`{idx}`. {user.mention}: **{tempo_formatado}**\n"
-
-    embed = discord.Embed(description=ranking_str, color=discord.Color.orange())
-    embed.set_footer(text="© Copyright |🛠・Benny's - Originals")
-
-    channel = bot.get_channel(log_de_comando_id)
-    await channel.send(embed=embed)
-
-#fim bot horas
-
 # Evento on_ready para enviar a prova, a mensagem inicial da hierarquia, carregar comandos slash e o bot de horas
 @bot.event
 async def on_ready():
     # Criar a tabela no banco de dados
     create_table()
-    carregar_dados_de_arquivo()
-    await enviar_mensagem_consulta()
-    await exibir_ranking_horas()
 
     # Sincronizar os comandos do bot
     await bot.tree.sync()
+
+    # Enviar a mensagem inicial de consulta de horas
+    await enviar_mensagem_consulta()
 
     # Iniciar tarefas de atualização de horas e salvamento de dados
     if not atualizar_horas_servico.is_running():
         atualizar_horas_servico.start()
     if not salvar_dados.is_running():
         salvar_dados.start()
+
+    # Carregar dados de arquivo
+    carregar_dados_de_arquivo()
 
     global hierarchy_message_id
     guild = bot.guilds[0]
@@ -1245,8 +1083,6 @@ async def on_ready():
         print("Erro: O bot não tem permissão para ler o histórico de mensagens do canal.")
     
     # Enviar ou editar a mensagem inicial (relacionada à hierarquia ou outra funcionalidade)
-    await enviar_ou_editar_mensagem_inicial_hierarquia()
-
     await enviar_ou_editar_mensagem_inicial()
 
     # Iniciar a verificação de interação
