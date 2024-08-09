@@ -145,9 +145,13 @@ async def consultarelat(interaction: discord.Interaction, user: discord.User, da
         return
 
     try:
-        # Converte as datas de string para objetos datetime
-        data_inicio_dt = datetime.strptime(data_inicio, "%d/%m/%Y")
-        data_fim_dt = datetime.strptime(data_fim, "%d/%m/%Y")
+        # Converte as datas de string para objetos datetime e aplica o fuso horário do Brasil
+        data_inicio_dt = datetime.strptime(data_inicio, "%d/%m/%Y").replace(tzinfo=timezone_brasil)
+        data_fim_dt = datetime.strptime(data_fim, "%d/%m/%Y").replace(tzinfo=timezone_brasil)
+
+        # Ajuste para incluir o dia inteiro na busca (até 23:59:59 do data_fim)
+        data_fim_dt = data_fim_dt + timedelta(days=1) - timedelta(seconds=1)
+
     except ValueError:
         await interaction.response.send_message("Formato de data inválido. Use DD/MM/YYYY.", ephemeral=True)
         return
@@ -162,14 +166,12 @@ async def consultarelat(interaction: discord.Interaction, user: discord.User, da
         await interaction.response.send_message("Erro: Canal de relatórios não encontrado.", ephemeral=True)
         return
 
-    # Busca de mensagens no canal dentro do período
-    async for message in canal_relatorios.history(after=data_inicio_dt, before=data_fim_dt):
+    # Busca de mensagens no canal dentro do período com os limites inclusivos
+    async for message in canal_relatorios.history(after=data_inicio_dt - timedelta(seconds=1), before=data_fim_dt + timedelta(seconds=1), limit=None):
         if message.author == user:
             total_relatorios += 1
 
     await interaction.response.send_message(f"{user.mention} fez {total_relatorios} relatórios de {data_inicio} a {data_fim}.")
-
-
 @bot.tree.command(name="tempo", description="Consultar o tempo em serviço de um usuário pelo ID ou menção.")
 @app_commands.describe(user="ID ou menção do usuário a ser consultado")
 @app_commands.checks.has_any_role(*cargos_permitidos)
@@ -723,6 +725,15 @@ async def verificar_interacao():
 #-----------------------------------------------------------------FIM PROVA------------------------------------------------------------------
 
 # -------------------------------------------RANKING RELATÓRIOS---------------------------------------------------
+
+# Convert to offset-aware datetime for message creation and adjust boundaries
+data_inicio_aware = data_inicio.replace(tzinfo=timezone_brasil, hour=0, minute=0, second=0, microsecond=0)
+data_fim_aware = data_fim.replace(tzinfo=timezone_brasil, hour=23, minute=59, second=59, microsecond=999999)
+
+# Fetching history with adjusted boundaries
+async for message in channel.history(after=data_inicio_aware - timedelta(seconds=1), before=data_fim_aware + timedelta(seconds=1), limit=None):
+    print(f"Processing message created at: {message.created_at.astimezone(timezone_brasil)}")
+    await processar_relatorio(message)
 
 async def buscar_mensagem_ranking(canal):
     async for mensagem in canal.history(limit=100):
