@@ -1182,10 +1182,6 @@ async def on_ready():
 
     # Carregar dados de arquivo
     carregar_dados_de_arquivo()
-
-    global hierarchy_message_id
-    guild = bot.guilds[0]
-    channel = bot.get_channel(channel_id)
     
     try:
         await bot.tree.sync()
