@@ -1112,7 +1112,7 @@ async def atualizar_hierarquia(guild):
         if role:
             members = [member.mention for member in role.members]
             if members:
-                hierarquia_str += f"@{role_name.upper()}\n"
+                hierarquia_str += f"# @{role_name.upper()}\n"  # Usando # para aumentar o tamanho do título
                 hierarquia_str += "\n".join(members)
                 hierarquia_str += "\n\n"  # Espaço entre os cargos
     
