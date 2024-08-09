@@ -4,6 +4,7 @@ from discord import app_commands
 from discord.ui import Button, View, Select, Modal, TextInput
 from discord.utils import get
 import logging
+import asyncio
 import pytz
 import re
 import os
@@ -133,6 +134,9 @@ roles_hierarchy = {
 
 # ID do canal onde a hierarquia será postada
 canal_hierarquia_id = 1250878994346414121 # Substitua pelo ID do canal real
+
+# Variável para armazenar o timestamp da última atualização
+ultima_atualizacao = None
 
 # Mensagem que será editada
 mensagem_hierarquia = None
@@ -1133,12 +1137,20 @@ def construir_hierarquia(guild):
     
     return hierarquia_str
 
-# Função para atualizar a hierarquia
+# Função para atualizar a hierarquia com debounce
 async def atualizar_hierarquia(guild):
+    global ultima_atualizacao
+    
     channel = guild.get_channel(canal_hierarquia_id)
     if not channel:
         print("Erro: Canal de hierarquia não encontrado.")
         return
+    
+    # Checar se passou tempo suficiente desde a última atualização
+    agora = asyncio.get_event_loop().time()
+    if ultima_atualizacao and agora - ultima_atualizacao < 5:  # 5 segundos de debounce
+        return
+    ultima_atualizacao = agora
     
     # Procurar por uma mensagem existente que comece com "Ranking de Hierarquia"
     async for message in channel.history(limit=100):  # Verifica as últimas 100 mensagens
@@ -1162,13 +1174,29 @@ async def on_guild_role_update(before, after):
 # Evento on_ready para enviar a prova, a mensagem inicial da hierarquia, carregar comandos slash e o bot de horas
 @bot.event
 async def on_ready():
-    #canal hierarquia
-    guild = bot.guilds[0]  # Supondo que o bot esteja em um único servidor
-    await atualizar_hierarquia(guild)
-
     global hierarchy_message_id
-    guild = bot.guilds[0]  # Pega o primeiro servidor/guilda em que o bot está (você pode especificar o ID se necessário)
-    channel = bot.get_channel(channel_id_devedores)
+    
+    guild = bot.get_guild(1235035964556972092)  # Substitua pelo ID do seu servidor
+    if not guild:
+        print("Erro: Servidor não encontrado.")
+        return
+
+    channel = guild.get_channel(SEU_CANAL_ID_HIERARQUIA)  # Substitua pelo ID do canal de hierarquia
+    if not channel:
+        print("Erro: Canal de hierarquia não encontrado.")
+        return
+
+    # Verificar se já existe uma mensagem de hierarquia
+    async for message in channel.history(limit=100):  # Limite para evitar varredura longa
+        if message.content.startswith("**# Hierarquia: Devedores ⛔**"):
+            hierarchy_message_id = message.id
+            break
+
+    # Se não encontrar a mensagem, enviar uma nova e armazenar o ID
+    if hierarchy_message_id is None:
+        hierarchy_text = await build_hierarchy(guild)
+        new_message = await channel.send(hierarchy_text)
+        hierarchy_message_id = new_message.id
 
     # Verifica as últimas 100 mensagens no canal para ver se a mensagem de hierarquia já existe
     async for message in channel.history(limit=100):
