@@ -1134,12 +1134,6 @@ async def atualizar_hierarquia(guild):
 
 # Eventos para monitorar mudanças de cargo
 @bot.event
-async def on_ready():
-    print(f'Bot conectado como {bot.user}')
-    guild = bot.guilds[0]  # Supondo que o bot esteja em um único servidor
-    await atualizar_hierarquia(guild)
-
-@bot.event
 async def on_member_update(before, after):
     if before.roles != after.roles:  # Se os cargos mudaram
         await atualizar_hierarquia(after.guild)
@@ -1151,6 +1145,10 @@ async def on_guild_role_update(before, after):
 # Evento on_ready para enviar a prova, a mensagem inicial da hierarquia, carregar comandos slash e o bot de horas
 @bot.event
 async def on_ready():
+    #canal hierarquia
+    guild = bot.guilds[0]  # Supondo que o bot esteja em um único servidor
+    await atualizar_hierarquia(guild)
+
     # Criar a tabela no banco de dados
     create_table()
 
