@@ -729,11 +729,6 @@ async def verificar_interacao():
 
 # -------------------------------------------RANKING RELATÓRIOS---------------------------------------------------
 
-# Fetching history with adjusted boundaries
-async for message in channel.history(after=data_inicio_aware - timedelta(seconds=1), before=data_fim_aware + timedelta(seconds=1), limit=None):
-    print(f"Processing message created at: {message.created_at.astimezone(timezone_brasil)}")
-    await processar_relatorio(message)
-
 async def buscar_mensagem_ranking(canal):
     async for mensagem in canal.history(limit=100):
         if mensagem.author == bot.user and mensagem.embeds and mensagem.embeds[0].title == "👑 Ranking de Relatórios de Tunning":
