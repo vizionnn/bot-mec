@@ -118,6 +118,26 @@ canais_voz_ids = [
     1244174420139053077, 1247009675162161162
 ]
 
+# IDs dos cargos CANAL HIERARQUIA
+roles_hierarchy = {
+    1235035964624080990: "CEO",
+    1235035964624080989: "👑",
+    1235035964624080987: "prefeitura",
+    1235035964599042095: "chefe",
+    1235035964599042094: "sub chefe",
+    1235035964599042091: "gerente",
+    1235035964599042090: "sub-gerente",
+    1235035964556972094: "mecânico senior",
+    1235035964573880398: "mecânico",
+    1235035964573880397: "estagiário"
+}
+
+# ID do canal onde a hierarquia será postada
+canal_hierarquia_id = 1250878994346414121 # Substitua pelo ID do canal real
+
+# Mensagem que será editada
+mensagem_hierarquia = None
+
 #_______________________________________________________________________________
 
 # fim variáveis, inicio bot de comandos
@@ -1079,6 +1099,54 @@ def carregar_dados_de_arquivo():
         conn.close()
     except FileNotFoundError:
         print("Nenhum backup encontrado. Iniciando sem dados de backup.")
+
+# Função para atualizar CANAL DA HIERARQUIA
+async def atualizar_hierarquia(guild):
+    global mensagem_hierarquia
+
+    hierarquia_str = ""
+    
+    # Construindo a string da hierarquia
+    for role_id, role_name in roles_hierarchy.items():
+        role = guild.get_role(role_id)
+        if role:
+            members = [member.mention for member in role.members]
+            if members:
+                hierarquia_str += f"@{role_name.upper()}\n"
+                hierarquia_str += "\n".join(members)
+                hierarquia_str += "\n\n"  # Espaço entre os cargos
+    
+    # Encontrar o canal de hierarquia
+    channel = guild.get_channel(canal_hierarquia_id)
+    
+    if not channel:
+        print("Erro: Canal de hierarquia não encontrado.")
+        return
+    
+    # Se já existir uma mensagem, edite-a, senão, envie uma nova mensagem
+    if mensagem_hierarquia:
+        try:
+            await mensagem_hierarquia.edit(content=hierarquia_str)
+        except discord.errors.NotFound:
+            mensagem_hierarquia = await channel.send(hierarquia_str)
+    else:
+        mensagem_hierarquia = await channel.send(hierarquia_str)
+
+# Eventos para monitorar mudanças de cargo
+@bot.event
+async def on_ready():
+    print(f'Bot conectado como {bot.user}')
+    guild = bot.guilds[0]  # Supondo que o bot esteja em um único servidor
+    await atualizar_hierarquia(guild)
+
+@bot.event
+async def on_member_update(before, after):
+    if before.roles != after.roles:  # Se os cargos mudaram
+        await atualizar_hierarquia(after.guild)
+
+@bot.event
+async def on_guild_role_update(before, after):
+    await atualizar_hierarquia(before.guild)
 
 # Evento on_ready para enviar a prova, a mensagem inicial da hierarquia, carregar comandos slash e o bot de horas
 @bot.event
