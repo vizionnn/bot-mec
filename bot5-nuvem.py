@@ -57,20 +57,19 @@ cargo_exonerado_id = 1235035964556972093
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# IDs dos cargos de devedores
+# IDs dos cargos dos devedores
 roles_ids = {
-    'adv1': 1235035964556972100,
-    'adv2': 1235035964556972101,
-    'adv3': 1235035964573880390,
-    'adv4': 1255195989778628739,
-    'rebaixado': 1235035964556972097,
-    'devedor_manutencao': 1255196288698552321,
-    'devedor_adv': 1255196379609825350
+    "ADV1": 1235035964556972100,
+    "ADV2": 1235035964556972101,
+    "ADV3": 1235035964573880390,
+    "ADV4": 1255195989778628739,
+    "REBAIXADO": 1235035964556972097,
+    "DEVEDOR MANUTENÇÃO": 1255196288698552321,
+    "DEVEDOR ADV": 1255196379609825350
 }
 
-# Configurações dos intents
-intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents)
+# ID do canal onde a hierarquia de devedores será postada
+channel_id_devedores = 1255178131707265066
 
 # IDs dos cargos que você deseja incluir no ranking
 cargos_desejados = [
@@ -914,34 +913,51 @@ async def on_member_remove(member):
     if channel:
         await channel.send(embed=embed)
 
-channel_id = 1255178131707265066
-hierarchy_message_id = None  # Variável para armazenar o ID da mensagem de hierarquia
-
 # Função para construir a hierarquia de devedores
 async def build_hierarchy(guild):
-    hierarchy_text = "** # Hierarquia: Devedores ⛔**\n"
+    hierarchy_text = "**# Hierarquia: Devedores ⛔**\n\n"
     for role_name, role_id in roles_ids.items():
         role = get(guild.roles, id=role_id)
         members_with_role = role.members
-        hierarchy_text += f"# {role.mention} : {len(members_with_role)}\n"
+        hierarchy_text += f"# {role.mention}: {len(members_with_role)}\n"
         for member in members_with_role:
             hierarchy_text += f"{member.mention}\n"
+        hierarchy_text += "\n"  # Adiciona um espaço entre os grupos de cargos
     return hierarchy_text
 
-# Evento on_member_update para atualizar a hierarquia dinamicamente
+# Função para atualizar a hierarquia
+async def update_hierarchy(guild):
+    channel = bot.get_channel(channel_id_devedores)
+    if not channel:
+        print("Erro: Canal de hierarquia não encontrado.")
+        return
+    
+    # Verificar se há uma mensagem existente que comece com "# Hierarquia: Devedores ⛔"
+    async for message in channel.history(limit=100):  # Verifica as últimas 100 mensagens
+        if message.content.startswith("**# Hierarquia: Devedores ⛔**"):
+            hierarchy_text = await build_hierarchy(guild)
+            await message.edit(content=hierarchy_text)
+            return
+    
+    # Se não encontrar, enviar uma nova mensagem
+    hierarchy_text = await build_hierarchy(guild)
+    await channel.send(hierarchy_text)
+
+# Eventos para monitorar mudanças de cargo
+@bot.event
+async def on_ready():
+    print(f'Bot conectado como {bot.user}')
+    guild = bot.guilds[0]  # Supondo que o bot esteja em um único servidor
+    await update_hierarchy(guild)
+
 @bot.event
 async def on_member_update(before, after):
-    global hierarchy_message_id
-    guild = after.guild
-    channel = bot.get_channel(channel_id)
-    
-    # Verificar se houve mudança nos cargos do membro
-    if before.roles != after.roles:
-        hierarchy_text = await build_hierarchy(guild)
-        
-        if hierarchy_message_id is not None:
-            message = await channel.fetch_message(hierarchy_message_id)
-            await message.edit(content=hierarchy_text)
+    if before.roles != after.roles:  # Se os cargos mudaram
+        await update_hierarchy(after.guild)
+
+@bot.event
+async def on_guild_role_update(before, after):
+    await update_hierarchy(before.guild)
 
     #~~~~~~~~~~~~~~~~~~~~---------------------------BOT DE HORAS-----------------------------~~~~~~~~~~~~~~~~~~~~
 
@@ -1100,11 +1116,9 @@ def carregar_dados_de_arquivo():
     except FileNotFoundError:
         print("Nenhum backup encontrado. Iniciando sem dados de backup.")
 
-# Função para atualizar CANAL DA HIERARQUIA
-async def atualizar_hierarquia(guild):
-    global mensagem_hierarquia
-
-    hierarquia_str = ""
+# Função para construir a string de hierarquia
+def construir_hierarquia(guild):
+    hierarquia_str = "# Ranking de Hierarquia:\n\n"
     
     # Construindo a string da hierarquia
     for role_id, role_name in roles_hierarchy.items():
@@ -1116,21 +1130,23 @@ async def atualizar_hierarquia(guild):
                 hierarquia_str += "\n".join(members)
                 hierarquia_str += "\n\n"  # Espaço entre os cargos
     
-    # Encontrar o canal de hierarquia
+    return hierarquia_str
+
+# Função para atualizar a hierarquia
+async def atualizar_hierarquia(guild):
     channel = guild.get_channel(canal_hierarquia_id)
-    
     if not channel:
         print("Erro: Canal de hierarquia não encontrado.")
         return
     
-    # Se já existir uma mensagem, edite-a, senão, envie uma nova mensagem
-    if mensagem_hierarquia:
-        try:
-            await mensagem_hierarquia.edit(content=hierarquia_str)
-        except discord.errors.NotFound:
-            mensagem_hierarquia = await channel.send(hierarquia_str)
-    else:
-        mensagem_hierarquia = await channel.send(hierarquia_str)
+    # Procurar por uma mensagem existente que comece com "Ranking de Hierarquia"
+    async for message in channel.history(limit=100):  # Verifica as últimas 100 mensagens
+        if message.content.startswith("# Ranking de Hierarquia"):
+            await message.edit(content=construir_hierarquia(guild))
+            return
+    
+    # Se não encontrar, enviar uma nova mensagem
+    await channel.send(construir_hierarquia(guild))
 
 # Eventos para monitorar mudanças de cargo
 @bot.event
