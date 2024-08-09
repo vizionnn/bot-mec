@@ -136,6 +136,7 @@ async def has_allowed_role(interaction: discord.Interaction):
     
     return False
 
+
 @bot.tree.command(name="consultarelat", description="Consulta relatórios de um usuário em um período.")
 @app_commands.describe(user="Usuário a ser consultado", data_inicio="Data de início (DD/MM/YYYY)", data_fim="Data de fim (DD/MM/YYYY)")
 async def consultarelat(interaction: discord.Interaction, user: discord.User, data_inicio: str, data_fim: str):
@@ -172,6 +173,8 @@ async def consultarelat(interaction: discord.Interaction, user: discord.User, da
             total_relatorios += 1
 
     await interaction.response.send_message(f"{user.mention} fez {total_relatorios} relatórios de {data_inicio} a {data_fim}.")
+
+
 @bot.tree.command(name="tempo", description="Consultar o tempo em serviço de um usuário pelo ID ou menção.")
 @app_commands.describe(user="ID ou menção do usuário a ser consultado")
 @app_commands.checks.has_any_role(*cargos_permitidos)
@@ -725,10 +728,6 @@ async def verificar_interacao():
 #-----------------------------------------------------------------FIM PROVA------------------------------------------------------------------
 
 # -------------------------------------------RANKING RELATÓRIOS---------------------------------------------------
-
-# Convert to offset-aware datetime for message creation and adjust boundaries
-data_inicio_aware = data_inicio.replace(tzinfo=timezone_brasil, hour=0, minute=0, second=0, microsecond=0)
-data_fim_aware = data_fim.replace(tzinfo=timezone_brasil, hour=23, minute=59, second=59, microsecond=999999)
 
 # Fetching history with adjusted boundaries
 async for message in channel.history(after=data_inicio_aware - timedelta(seconds=1), before=data_fim_aware + timedelta(seconds=1), limit=None):
