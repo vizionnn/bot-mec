@@ -120,10 +120,21 @@ canais_voz_ids = [
 
 #_______________________________________________________________________________
 
-# fim variáveis, inicio bot de prova
+# fim variáveis, inicio bot de comandos
 
 # ID do canal de consulta
 consultar_horas_id = 1246990807140007997
+
+async def has_allowed_role(interaction: discord.Interaction):
+    # Lista de IDs dos cargos permitidos
+    allowed_roles = [1235035964556972099, 1235035964556972095]
+
+    # Verifica se o usuário tem algum dos cargos permitidos
+    for role in interaction.user.roles:
+        if role.id in allowed_roles:
+            return True
+    
+    return False
 
 @bot.tree.command(name="consultarelat", description="Consulta relatórios de um usuário em um período.")
 @app_commands.describe(user="Usuário a ser consultado", data_inicio="Data de início (DD/MM/YYYY)", data_fim="Data de fim (DD/MM/YYYY)")
