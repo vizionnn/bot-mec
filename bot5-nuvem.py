@@ -1189,16 +1189,6 @@ async def on_ready():
     except Exception as e:
         print(f"Erro ao sincronizar comandos: {e}")
 
-    hierarchy_text = await build_hierarchy(guild)
-
-    # Enviar a mensagem inicial ou editar a mensagem existente
-    if hierarchy_message_id is None:
-        message = await channel.send(hierarchy_text)
-        hierarchy_message_id = message.id
-    else:
-        message = await channel.fetch_message(hierarchy_message_id)
-        await message.edit(content=hierarchy_text)
-
     # Criar um dicionário de membros por ID
     global membros_por_id
     membros_por_id = {membro.id: membro for membro in bot.get_all_members()}
