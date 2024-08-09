@@ -915,33 +915,14 @@ async def on_member_remove(member):
 
 # Função para construir a hierarquia de devedores
 async def build_hierarchy(guild):
-    hierarchy_text = "**# Hierarquia: Devedores ⛔**\n\n"
+    hierarchy_text = "** # Hierarquia: Devedores ⛔**\n"
     for role_name, role_id in roles_ids.items():
-        role = get(guild.roles, id=role_id)
+        role = guild.get_role(role_id)  # Obtém o cargo pelo ID
         members_with_role = role.members
-        hierarchy_text += f"# {role.mention}: {len(members_with_role)}\n"
+        hierarchy_text += f"# {role.mention} : {len(members_with_role)}\n"
         for member in members_with_role:
             hierarchy_text += f"{member.mention}\n"
-        hierarchy_text += "\n"  # Adiciona um espaço entre os grupos de cargos
     return hierarchy_text
-
-# Função para atualizar a hierarquia
-async def update_hierarchy(guild):
-    channel = bot.get_channel(channel_id_devedores)
-    if not channel:
-        print("Erro: Canal de hierarquia não encontrado.")
-        return
-    
-    # Verificar se há uma mensagem existente que comece com "# Hierarquia: Devedores ⛔"
-    async for message in channel.history(limit=100):  # Verifica as últimas 100 mensagens
-        if message.content.startswith("**# Hierarquia: Devedores ⛔**"):
-            hierarchy_text = await build_hierarchy(guild)
-            await message.edit(content=hierarchy_text)
-            return
-    
-    # Se não encontrar, enviar uma nova mensagem
-    hierarchy_text = await build_hierarchy(guild)
-    await channel.send(hierarchy_text)
 
 # Eventos para monitorar mudanças de cargo
 @bot.event
@@ -950,10 +931,30 @@ async def on_ready():
     guild = bot.guilds[0]  # Supondo que o bot esteja em um único servidor
     await update_hierarchy(guild)
 
+# Evento on_member_update para atualizar a hierarquia dinamicamente
 @bot.event
 async def on_member_update(before, after):
-    if before.roles != after.roles:  # Se os cargos mudaram
-        await update_hierarchy(after.guild)
+    global hierarchy_message_id
+    guild = after.guild
+    channel = bot.get_channel(channel_id_devedores)
+    
+    # Verificar se houve mudança nos cargos do membro
+    if before.roles != after.roles:
+        hierarchy_text = await build_hierarchy(guild)
+        
+        if hierarchy_message_id is not None:
+            try:
+                # Tenta buscar a mensagem existente
+                message = await channel.fetch_message(hierarchy_message_id)
+                await message.edit(content=hierarchy_text)
+            except discord.NotFound:
+                # Se a mensagem não for encontrada, cria uma nova
+                new_message = await channel.send(hierarchy_text)
+                hierarchy_message_id = new_message.id
+        else:
+            # Se não houver uma mensagem de hierarquia existente, cria uma nova
+            new_message = await channel.send(hierarchy_text)
+            hierarchy_message_id = new_message.id
 
 @bot.event
 async def on_guild_role_update(before, after):
@@ -1164,6 +1165,22 @@ async def on_ready():
     #canal hierarquia
     guild = bot.guilds[0]  # Supondo que o bot esteja em um único servidor
     await atualizar_hierarquia(guild)
+
+    global hierarchy_message_id
+    guild = bot.guilds[0]  # Pega o primeiro servidor/guilda em que o bot está (você pode especificar o ID se necessário)
+    channel = bot.get_channel(channel_id_devedores)
+
+    # Verifica as últimas 100 mensagens no canal para ver se a mensagem de hierarquia já existe
+    async for message in channel.history(limit=100):
+        if message.content.startswith("** # Hierarquia: Devedores ⛔**"):
+            hierarchy_message_id = message.id
+            break
+
+    # Se não encontrar, cria uma nova mensagem
+    if hierarchy_message_id is None:
+        hierarchy_text = await build_hierarchy(guild)
+        new_message = await channel.send(hierarchy_text)
+        hierarchy_message_id = new_message.id
 
     # Criar a tabela no banco de dados
     create_table()
