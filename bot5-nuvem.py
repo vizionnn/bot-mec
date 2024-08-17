@@ -991,7 +991,7 @@ async def exibir_ranking():
     current_time = datetime.now(timezone_brasil).strftime('%H:%M:%S')
 
     # Criar o embed do ranking
-    embed = discord.Embed(title="👑 Ranking de Relatórios de Tunning\n", description=ranking_str, color=0xffa500)
+    embed = discord.Embed(title="👑 Ranking de Relatórios de Tunning Semanal\n", description=ranking_str, color=0xffa500)
     embed.set_thumbnail(url=channel.guild.icon.url)
     embed.add_field(name="\u200b", value=f"**📬 Total de relatórios: {sum(relatorios_smnl.values())}**", inline=False)
     embed.set_footer(text=f"📅 De `{data_inicio_semanal.strftime('%d %B')}` a `{data_fim_semanal.strftime('%d %B')}` \n\n ⏰ Última atualização: {current_time}")
@@ -1317,12 +1317,19 @@ def carregar_dados_de_arquivo():
     except FileNotFoundError:
         print("Nenhum backup encontrado. Iniciando sem dados de backup.")
 
+# Função para buscar a mensagem de hierarquia existente no canal
+async def buscar_mensagem_hierarquia(channel):
+    async for mensagem in channel.history(limit=100):
+        if mensagem.author == bot.user and mensagem.content.startswith("# <@&"):
+            return mensagem
+    return None
+
 # Função para atualizar CANAL DA HIERARQUIA
 async def atualizar_hierarquia(guild):
     global mensagem_hierarquia
 
     hierarquia_str = ""
-    
+
     # Construindo a string da hierarquia
     for role_id, role_name in roles_hierarchy.items():
         role = guild.get_role(role_id)
@@ -1332,14 +1339,18 @@ async def atualizar_hierarquia(guild):
                 hierarquia_str += f"# <@&{role_id}>\n"  # Usando menção real ao cargo
                 hierarquia_str += "\n".join(members)
                 hierarquia_str += "\n\n"  # Espaço entre os cargos
-    
+
     # Encontrar o canal de hierarquia
     channel = guild.get_channel(canal_hierarquia_id)
-    
+
     if not channel:
         print("Erro: Canal de hierarquia não encontrado.")
         return
-    
+
+    # Buscar a mensagem existente, se ainda não foi armazenada
+    if not mensagem_hierarquia:
+        mensagem_hierarquia = await buscar_mensagem_hierarquia(channel)
+
     # Se já existir uma mensagem, edite-a, senão, envie uma nova mensagem
     if mensagem_hierarquia:
         try:
@@ -1362,7 +1373,7 @@ async def on_guild_role_update(before, after):
 # Evento on_ready para enviar a prova, a mensagem inicial da hierarquia, carregar comandos slash e o bot de horas
 @bot.event
 async def on_ready():
-    #canal hierarquia
+    # Canal hierarquia
     guild = bot.guilds[0]  # Supondo que o bot esteja em um único servidor
     await atualizar_hierarquia(guild)
 
