@@ -1123,7 +1123,7 @@ async def build_hierarchy(guild):
 
     return embed
 
-# Função para encontrar a mensagem existente
+#função pra encontrar mensagem existente
 async def find_existing_message(channel):
     async for message in channel.history(limit=100):
         if message.author == bot.user and message.embeds:
@@ -1131,23 +1131,20 @@ async def find_existing_message(channel):
             if embed.title == "⛔ Hierarquia: Devedores":
                 return message
     return None
-
 # Evento on_member_update para atualizar a hierarquia dinamicamente
 @bot.event
 async def on_member_update(before, after):
     global hierarchy_message_id_devedores
     guild = after.guild
     channel = bot.get_channel(channel_id_devedores)
-    
-    if before.roles != after.roles:
+
+    if set(before.roles) != set(after.roles):  # Verifica se houve alteração nos cargos
         embed = await build_hierarchy(guild)
 
-        # Buscar mensagem existente e atualizar somente se o conteúdo mudou
         if hierarchy_message_id_devedores is not None:
             try:
                 message = await channel.fetch_message(hierarchy_message_id_devedores)
-                if message.embeds[0].to_dict() != embed.to_dict():  # Verifica se o conteúdo realmente mudou
-                    await message.edit(embed=embed)
+                await message.edit(embed=embed)
             except discord.errors.NotFound:
                 message = await channel.send(embed=embed)
                 hierarchy_message_id_devedores = message.id
