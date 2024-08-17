@@ -1107,8 +1107,15 @@ async def on_member_remove(member):
     if channel:
         await channel.send(embed=embed)
 
-# Função para construir a ~~~~~~~~~~~~~~~~~~ hierarquia de devedores
-async def build_hierarchy(guild):
+# Função para buscar a mensagem de ~~~~~~~~hierarquia devedores~~~~~~~~ existente no canal
+async def buscar_mensagem_hierarquia_devedores(channel):
+    async for mensagem in channel.history(limit=100):
+        if mensagem.author == bot.user and mensagem.embeds and mensagem.embeds[0].title == "⛔ Hierarquia: Devedores":
+            return mensagem
+    return None
+
+# Função para construir a hierarquia de devedores
+async def construir_hierarquia_devedores(guild):
     embed = discord.Embed(
         title="⛔ Hierarquia: Devedores",
         color=discord.Color.dark_red()
@@ -1116,46 +1123,46 @@ async def build_hierarchy(guild):
     embed.set_thumbnail(url=thumbnail_url)
 
     for role_name, role_id in roles_ids.items():
-        role = get(guild.roles, id=role_id)
+        role = guild.get_role(role_id)
         members_with_role = role.members
         member_mentions = "\n".join([member.mention for member in members_with_role])
         embed.add_field(name=f"{role.name}: ```{len(members_with_role)}```", value=member_mentions if member_mentions else "ㅤ", inline=False)
 
     return embed
 
-#função pra encontrar mensagem existente
-async def find_existing_message(channel):
-    async for message in channel.history(limit=100):
-        if message.author == bot.user and message.embeds:
-            embed = message.embeds[0]
-            if embed.title == "⛔ Hierarquia: Devedores":
-                return message
-    return None
-# Evento on_member_update para atualizar a hierarquia dinamicamente
+# Função para atualizar o canal da hierarquia
+async def atualizar_hierarquia_devedores(guild):
+    global mensagem_hierarquia
+
+    embed = await construir_hierarquia_devedores(guild)
+    channel = guild.get_channel(channel_id_devedores)
+
+    if not channel:
+        print("Erro: Canal de hierarquia não encontrado.")
+        return
+
+    # Buscar a mensagem existente, se ainda não foi armazenada
+    if not mensagem_hierarquia:
+        mensagem_hierarquia = await buscar_mensagem_hierarquia_devedores(channel)
+
+    # Se já existir uma mensagem, edite-a, senão, envie uma nova mensagem
+    if mensagem_hierarquia:
+        try:
+            await mensagem_hierarquia.edit(embed=embed)
+        except discord.errors.NotFound:
+            mensagem_hierarquia = await channel.send(embed=embed)
+    else:
+        mensagem_hierarquia = await channel.send(embed=embed)
+
+# Eventos para monitorar mudanças de cargo
 @bot.event
 async def on_member_update(before, after):
-    global hierarchy_message_id_devedores
-    guild = after.guild
-    channel = bot.get_channel(channel_id_devedores)
+    if before.roles != after.roles:  # Se os cargos mudaram
+        await atualizar_hierarquia_devedores(after.guild)
 
-    if set(before.roles) != set(after.roles):  # Verifica se houve alteração nos cargos
-        embed = await build_hierarchy(guild)
-
-        if hierarchy_message_id_devedores is not None:
-            try:
-                message = await channel.fetch_message(hierarchy_message_id_devedores)
-                await message.edit(embed=embed)
-            except discord.errors.NotFound:
-                message = await channel.send(embed=embed)
-                hierarchy_message_id_devedores = message.id
-        else:
-            message = await find_existing_message(channel)
-            if message:
-                hierarchy_message_id_devedores = message.id
-                await message.edit(embed=embed)
-            else:
-                message = await channel.send(embed=embed)
-                hierarchy_message_id_devedores = message.id
+@bot.event
+async def on_guild_role_update(before, after):
+    await atualizar_hierarquia_devedores(before.guild)
 
     #~~~~~~~~~~~~~~~~~~~~---------------------------BOT DE HORAS-----------------------------~~~~~~~~~~~~~~~~~~~~
 
@@ -1393,26 +1400,7 @@ async def on_ready():
     carregar_dados_de_arquivo()
 
     #CANAL ~~DEVEDORES
-    global hierarchy_message_id_devedores
-    guild = bot.guilds[0]
-    channel = bot.get_channel(channel_id_devedores)
-    
-    try:
-        await bot.tree.sync()
-        print("Sincronização de comandos concluída.")
-    except Exception as e:
-        print(f"Erro ao sincronizar comandos: {e}")
-
-    embed = await build_hierarchy(guild)
-
-    # Procurar por mensagem existente no canal
-    message = await find_existing_message(channel)
-    if message:
-        hierarchy_message_id_devedores = message.id
-        await message.edit(embed=embed)
-    else:
-        message = await channel.send(embed=embed)
-        hierarchy_message_id_devedores = message.id
+    await atualizar_hierarquia_devedores(guild)
 
     # Criar um dicionário de membros por ID ~~RANKING
     global membros_por_id
