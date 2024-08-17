@@ -59,15 +59,6 @@ canal_log_promocao_id = 1246992211749503085
 #ID do cargo exonerado
 cargo_exonerado_id = 1235035964556972093
 
-# Cria um mapeamento de cooldown para limitar as edições de mensagens
-cooldown_mapping = CooldownMapping.from_cooldown(1, 4.0, BucketType.guild)  # 1 operação a cada 10 segundos
-
-# Dicionário para armazenar o tempo da última atualização por servidor
-last_update_time = {}
-
-# Intervalo de cooldown em segundos
-cooldown_interval = 4
-
 # IDs dos cargos de devedores
 roles_ids = {
     'adv1': 1235035964556972100,
@@ -1116,18 +1107,7 @@ async def on_member_remove(member):
     if channel:
         await channel.send(embed=embed)
 
-# Função para verificar se o guild está em cooldown
-def is_rate_limited(guild_id):
-    current_time = time.time()
-    last_time = last_update_time.get(guild_id, 0)
-    
-    if current_time - last_time < cooldown_interval:
-        return True, cooldown_interval - (current_time - last_time)
-    
-    last_update_time[guild_id] = current_time
-    return False, None
-
-# Função para construir a hierarquia de devedores
+# Função para construir a ~~~~~~~~~~~~~~~~~~ hierarquia de devedores
 async def build_hierarchy(guild):
     embed = discord.Embed(
         title="⛔ Hierarquia: Devedores",
@@ -1139,7 +1119,7 @@ async def build_hierarchy(guild):
         role = get(guild.roles, id=role_id)
         members_with_role = role.members
         member_mentions = "\n".join([member.mention for member in members_with_role])
-        embed.add_field(name=f"{role.name}: ```{len(members_with_role)}```", value=member_mentions if member_mentions else "\n", inline=False)
+        embed.add_field(name=f"{role.name}: ```{len(members_with_role)}```", value=member_mentions if member_mentions else "ㅤ", inline=False)
 
     return embed
 
@@ -1158,12 +1138,6 @@ async def on_member_update(before, after):
     global hierarchy_message_id_devedores
     guild = after.guild
     channel = bot.get_channel(channel_id_devedores)
-    
-    # Verifica o cooldown para o servidor
-    rate_limited, retry_after = is_rate_limited(guild.id)
-    if rate_limited:
-        print(f"Rate limited! Waiting {retry_after:.2f} seconds before next attempt.")
-        return
     
     if before.roles != after.roles:
         embed = await build_hierarchy(guild)
@@ -1456,7 +1430,7 @@ async def on_ready():
         verificar_interacao.start()
 
     print(f'Bot conectado como {bot.user}')
-    
+
 load_dotenv()
 # Rodar o bot com o token do ambiente
 bot.run(os.getenv("DISCORD_TOKEN"))
