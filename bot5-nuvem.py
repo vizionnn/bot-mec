@@ -11,6 +11,9 @@ import json
 from dotenv import load_dotenv
 import asyncio
 import sqlite3
+from discord.ext import commands
+from discord.ext.commands import CooldownMapping, BucketType
+import time
 from datetime import datetime, timezone, timedelta
 
 # Configurações dos intents
