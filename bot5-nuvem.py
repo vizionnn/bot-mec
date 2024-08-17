@@ -1421,8 +1421,8 @@ async def on_ready():
         print("Erro: O bot não tem permissão para ler o histórico de mensagens do canal.")
     
         # Criar um dicionário de membros por ID ~~RANKING mensal
-    global membros_por_id
-    membros_por_id = {membro.id: membro for membro in bot.get_all_members()}
+    global membros_por_id1
+    membros_por_id1 = {membro.id: membro for membro in bot.get_all_members()}
 
     # Carregar relatórios antigos e exibir o ranking inicial
     try:
