@@ -71,8 +71,9 @@ roles_ids = {
 }
 
 #canal devedores
-channel_id_devedores = 1255178131707265066  # id canal devedores
-hierarchy_message_id_devedores = None
+# ID do canal de hierarquia devedores
+channel_id_devedores = 1255178131707265066
+mensagem_hierarquia_devedores = None  # Mensagem de hierarquia devedores
 
 # URL da thumbnail
 thumbnail_url = "https://cdn.discordapp.com/attachments/1235035964624080994/1273292957646327898/4a8075045e92cfa895a6c672fad7d1fa.png?ex=66c0b8f9&is=66bf6779&hm=e0cc82c95d4d8238642196305880f02809359e7f1e4ad5d3847b74239cb0e3fa&"
@@ -1107,7 +1108,7 @@ async def on_member_remove(member):
     if channel:
         await channel.send(embed=embed)
 
-# Função para buscar a mensagem de ~~~~~~~~hierarquia devedores~~~~~~~~ existente no canal
+# Função para buscar a mensagem de hierarquia devedores existente no canal
 async def buscar_mensagem_hierarquia_devedores(channel):
     async for mensagem in channel.history(limit=100):
         if mensagem.author == bot.user and mensagem.embeds and mensagem.embeds[0].title == "⛔ Hierarquia: Devedores":
@@ -1130,29 +1131,29 @@ async def construir_hierarquia_devedores(guild):
 
     return embed
 
-# Função para atualizar o canal da hierarquia
+# Função para atualizar o canal da hierarquia devedores
 async def atualizar_hierarquia_devedores(guild):
-    global mensagem_hierarquia
+    global mensagem_hierarquia_devedores
 
     embed = await construir_hierarquia_devedores(guild)
     channel = guild.get_channel(channel_id_devedores)
 
     if not channel:
-        print("Erro: Canal de hierarquia não encontrado.")
+        print("Erro: Canal de hierarquia devedores não encontrado.")
         return
 
     # Buscar a mensagem existente, se ainda não foi armazenada
-    if not mensagem_hierarquia:
-        mensagem_hierarquia = await buscar_mensagem_hierarquia_devedores(channel)
+    if not mensagem_hierarquia_devedores:
+        mensagem_hierarquia_devedores = await buscar_mensagem_hierarquia_devedores(channel)
 
     # Se já existir uma mensagem, edite-a, senão, envie uma nova mensagem
-    if mensagem_hierarquia:
+    if mensagem_hierarquia_devedores:
         try:
-            await mensagem_hierarquia.edit(embed=embed)
+            await mensagem_hierarquia_devedores.edit(embed=embed)
         except discord.errors.NotFound:
-            mensagem_hierarquia = await channel.send(embed=embed)
+            mensagem_hierarquia_devedores = await channel.send(embed=embed)
     else:
-        mensagem_hierarquia = await channel.send(embed=embed)
+        mensagem_hierarquia_devedores = await channel.send(embed=embed)
 
 # Eventos para monitorar mudanças de cargo
 @bot.event
@@ -1399,7 +1400,8 @@ async def on_ready():
     # Carregar dados de arquivo
     carregar_dados_de_arquivo()
 
-    #CANAL ~~DEVEDORES
+    #CANAL ~~DEVEDORES    
+    guild = bot.guilds[0]
     await atualizar_hierarquia_devedores(guild)
 
     # Criar um dicionário de membros por ID ~~RANKING
