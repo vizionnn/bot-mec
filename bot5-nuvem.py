@@ -71,9 +71,8 @@ roles_ids = {
 }
 
 #canal devedores
-# ID do canal de hierarquia devedores
-channel_id_devedores = 1255178131707265066
-mensagem_hierarquia_devedores = None  # Mensagem de hierarquia devedores
+channel_id_devedores = 1255178131707265066  # ID do canal de devedores
+hierarchy_message_id_devedores = None  # Mensagem de hierarquia devedores
 
 # URL da thumbnail
 thumbnail_url = "https://cdn.discordapp.com/attachments/1235035964624080994/1273292957646327898/4a8075045e92cfa895a6c672fad7d1fa.png?ex=66c0b8f9&is=66bf6779&hm=e0cc82c95d4d8238642196305880f02809359e7f1e4ad5d3847b74239cb0e3fa&"
@@ -921,7 +920,9 @@ async def processar_relatorio_remocao(message):
 
     await exibir_ranking()  # Atualiza o ranking imediatamente
 
-# RANKING RELATÓRIOS SEMANAL
+
+# -------------------------------------------------------------------- RANKING RELATÓRIOS SEMANAL
+
 
 async def buscar_mensagem_ranking_smnl(canal):
     async for mensagem in canal.history(limit=100):
@@ -942,12 +943,12 @@ async def processar_relatorio(message, atualizacao_antiga=False):
     global relatorios_smnl
 
     # Criar dicionário de membros por ID (uma vez, no início da função)
-    membros_por_id1 = {membro.id: membro for membro in message.guild.members}
+    membros_por_id = {membro.id: membro for membro in message.guild.members}
 
     # Procura por números na mensagem que são IDs inteiros (não partes de outros números)
     for id_match in re.finditer(r"\b\d+\b", message.content):
         user_id = int(id_match.group(0))
-        for membro in membros_por_id1.values():
+        for membro in membros_por_id.values():
             if str(user_id) == membro.display_name.split()[-1]:  # Verifica se o nome de exibição termina com o ID
                 if any(cargo.id in cargos_desejados for cargo in membro.roles):
                     relatorios_smnl[membro.id] = relatorios_smnl.get(membro.id, 0) + 1
@@ -1040,12 +1041,12 @@ async def processar_relatorio_remocao(message):
     global relatorios_smnl
 
     # Criar dicionário de membros por ID (uma vez, no início da função)
-    membros_por_id1 = {membro.id: membro for membro in message.guild.members}
+    membros_por_id = {membro.id: membro for membro in message.guild.members}
 
     # Procura por números na mensagem que são IDs inteiros (não partes de outros números)
     for id_match in re.finditer(r"\b\d+\b", message.content):
         user_id = int(id_match.group(0))
-        for membro in membros_por_id1.values():
+        for membro in membros_por_id.values():
             if str(user_id) == membro.display_name.split()[-1]:  # Verifica se o nome de exibição termina com o ID
                 if any(cargo.id in cargos_desejados for cargo in membro.roles):
                     relatorios_smnl[membro.id] = relatorios_smnl.get(membro.id, 0) - 1
@@ -1087,15 +1088,8 @@ async def on_member_remove(member):
     if channel:
         await channel.send(embed=embed)
 
-# Função para buscar a mensagem de hierarquia devedores existente no canal
-async def buscar_mensagem_hierarquia_devedores(channel):
-    async for mensagem in channel.history(limit=100):
-        if mensagem.author == bot.user and mensagem.embeds and mensagem.embeds[0].title == "⛔ Hierarquia: Devedores":
-            return mensagem
-    return None
-
 # Função para construir a hierarquia de devedores
-async def build_hierarchy(guild):
+async def construir_hierarquia_devedores(guild):
     embed = discord.Embed(
         title="⛔ Hierarquia: Devedores",
         color=discord.Color.dark_red()
@@ -1103,15 +1097,15 @@ async def build_hierarchy(guild):
     embed.set_thumbnail(url=thumbnail_url)
 
     for role_name, role_id in roles_ids.items():
-        role = get(guild.roles, id=role_id)
+        role = guild.get_role(role_id)
         members_with_role = role.members
         member_mentions = "\n".join([member.mention for member in members_with_role])
-        embed.add_field(name=f"{role.name}: ```{len(members_with_role)}```", value=member_mentions if member_mentions else "ㅤ", inline=False)
+        embed.add_field(name=f"{role.name}: {len(members_with_role)}", value=member_mentions if member_mentions else "Nenhum membro", inline=False)
 
     return embed
 
-# Função para encontrar a mensagem existente
-async def find_existing_message(channel):
+# Função para encontrar a mensagem existente de hierarquia de devedores
+async def buscar_mensagem_hierarquia_devedores(channel):
     async for message in channel.history(limit=100):
         if message.author == bot.user and message.embeds:
             embed = message.embeds[0]
@@ -1119,17 +1113,17 @@ async def find_existing_message(channel):
                 return message
     return None
 
-# Evento on_member_update para atualizar a hierarquia dinamicamente
+# Evento para atualizar a hierarquia de devedores dinamicamente
 @bot.event
 async def on_member_update(before, after):
     global hierarchy_message_id_devedores
     guild = after.guild
     channel = bot.get_channel(channel_id_devedores)
-    
-    if before.roles != after.roles:
-        embed = await build_hierarchy(guild)
 
-        # Buscar mensagem existente e atualizar somente se o conteúdo mudou
+    if before.roles != after.roles:
+        embed = await construir_hierarquia_devedores(guild)
+
+        # Se a mensagem já foi identificada, editá-la
         if hierarchy_message_id_devedores is not None:
             try:
                 message = await channel.fetch_message(hierarchy_message_id_devedores)
@@ -1139,7 +1133,7 @@ async def on_member_update(before, after):
                 message = await channel.send(embed=embed)
                 hierarchy_message_id_devedores = message.id
         else:
-            message = await find_existing_message(channel)
+            message = await buscar_mensagem_hierarquia_devedores(channel)
             if message:
                 hierarchy_message_id_devedores = message.id
                 await message.edit(embed=embed)
@@ -1360,6 +1354,28 @@ async def on_guild_role_update(before, after):
 # Evento on_ready para enviar a prova, a mensagem inicial da hierarquia, carregar comandos slash e o bot de horas
 @bot.event
 async def on_ready():
+        #CANAL ~~DEVEDORES    
+    global hierarchy_message_id_devedores
+    guild = bot.guilds[0]
+    channel = bot.get_channel(channel_id_devedores)
+
+    try:
+        await bot.tree.sync()
+        print("Sincronização de comandos concluída.")
+    except Exception as e:
+        print(f"Erro ao sincronizar comandos: {e}")
+
+    embed = await construir_hierarquia_devedores(guild)
+
+    # Procurar por mensagem existente no canal
+    message = await buscar_mensagem_hierarquia_devedores(channel)
+    if message:
+        hierarchy_message_id_devedores = message.id
+        await message.edit(embed=embed)
+    else:
+        message = await channel.send(embed=embed)
+        hierarchy_message_id_devedores = message.id
+
     # Canal hierarquia
     guild = bot.guilds[0]  # Supondo que o bot esteja em um único servidor
     await atualizar_hierarquia(guild)
@@ -1381,28 +1397,6 @@ async def on_ready():
 
     # Carregar dados de arquivo
     carregar_dados_de_arquivo()
-
-    #CANAL ~~DEVEDORES    
-    global hierarchy_message_id_devedores
-    guild = bot.guilds[0]
-    channel = bot.get_channel(channel_id_devedores)
-    
-    try:
-        await bot.tree.sync()
-        print("Sincronização de comandos concluída.")
-    except Exception as e:
-        print(f"Erro ao sincronizar comandos: {e}")
-
-    embed = await build_hierarchy(guild)
-
-    # Procurar por mensagem existente no canal
-    message = await find_existing_message(channel)
-    if message:
-        hierarchy_message_id_devedores = message.id
-        await message.edit(embed=embed)
-    else:
-        message = await channel.send(embed=embed)
-        hierarchy_message_id_devedores = message.id
 
     # Criar um dicionário de membros por ID ~~RANKING semanal
     global membros_por_id
