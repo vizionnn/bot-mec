@@ -13,7 +13,9 @@ import asyncio
 import sqlite3
 from datetime import datetime, timezone, timedelta
 
-load_dotenv()
+# Configurações dos intents
+intents = discord.Intents.all()
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 #comandos dm e message
 AUTHORIZED_ROLES = [1235035964556972095, 1235035964556972099]
@@ -54,9 +56,14 @@ canal_log_promocao_id = 1246992211749503085
 #ID do cargo exonerado
 cargo_exonerado_id = 1235035964556972093
 
-# Configurações dos intents
-intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents)
+# Cria um mapeamento de cooldown para limitar as edições de mensagens
+cooldown_mapping = CooldownMapping.from_cooldown(1, 4.0, BucketType.guild)  # 1 operação a cada 10 segundos
+
+# Dicionário para armazenar o tempo da última atualização por servidor
+last_update_time = {}
+
+# Intervalo de cooldown em segundos
+cooldown_interval = 4
 
 # IDs dos cargos de devedores
 roles_ids = {
@@ -75,15 +82,6 @@ hierarchy_message_id_devedores = None
 
 # URL da thumbnail
 thumbnail_url = "https://cdn.discordapp.com/attachments/1235035964624080994/1273292957646327898/4a8075045e92cfa895a6c672fad7d1fa.png?ex=66c0b8f9&is=66bf6779&hm=e0cc82c95d4d8238642196305880f02809359e7f1e4ad5d3847b74239cb0e3fa&"
-
-# Cria um mapeamento de cooldown para limitar as edições de mensagens
-cooldown_mapping = CooldownMapping.from_cooldown(1, 4.0, BucketType.guild)  # 1 operação a cada 10 segundos
-
-# Dicionário para armazenar o tempo da última atualização por servidor
-last_update_time = {}
-
-# Intervalo de cooldown em segundos
-cooldown_interval = 4
 
 # IDs dos cargos que você deseja incluir no ranking
 cargos_desejados = [
@@ -1455,7 +1453,8 @@ async def on_ready():
         verificar_interacao.start()
 
     print(f'Bot conectado como {bot.user}')
-
+    
+load_dotenv()
 # Rodar o bot com o token do ambiente
 bot.run(os.getenv("DISCORD_TOKEN"))
 update_hierarchy.start()
