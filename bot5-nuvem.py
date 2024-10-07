@@ -80,8 +80,8 @@ cargos_desejados = [
 ]
 
 # Data de início e fim da contagem
-data_inicio = datetime(2024, 9, 1, tzinfo=timezone.utc)  # Define a data de início com fuso horário UTC
-data_fim = datetime(2024, 10, 1, tzinfo=timezone.utc)     # Define a data de fim com fuso horário UTC
+data_inicio = datetime(2024, 10, 1, tzinfo=timezone.utc)  # Define a data de início com fuso horário UTC
+data_fim = datetime(2024, 11, 1, tzinfo=timezone.utc)     # Define a data de fim com fuso horário UTC
 
 # Variável para armazenar a mensagem do ranking
 mensagem_ranking = None
