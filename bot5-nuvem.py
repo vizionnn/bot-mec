@@ -11,75 +11,62 @@ import json
 from dotenv import load_dotenv
 import asyncio
 import sqlite3
+from discord.ext import commands
+from discord.ext.commands import CooldownMapping, BucketType
+import time
 from datetime import datetime, timezone, timedelta
 
-load_dotenv()
+# Configurações dos intents
+intents = discord.Intents.all()
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 #comandos dm e message
-AUTHORIZED_ROLES = [1235035964556972095, 1235035964556972099]
+AUTHORIZED_ROLES = [1246977272880037956, 1246977272859332662]
 LOG_CHANNEL_ID = 1249235583637651507
 
 # IDs do canal de provas e do canal de correção de provas
-canal_prova_aluno_id = 1235035966876549126
-canal_corrigir_prova_id = 1235035966876549127
+canal_prova_aluno_id = 1246977273253462070
+canal_corrigir_prova_id = 1246977273253462072
 
 # IDs dos cargos que podem visualizar o canal temporário
-cargo_visualizacao_1_id = 1235035964556972095
-cargo_visualizacao_2_id = 1235035964556972099
+cargo_visualizacao_1_id = 1246977272880037956
+cargo_visualizacao_2_id = 1246977272859332662
 
 # ID do cargo responsável por realizar a prova
-cargo_prova_id = 1258746878946709566
+cargo_prova_id = 1246977272859332661
 
 # IDs dos cargos
-cargo_visualizacao_1_id = 1235035964556972095
-cargo_visualizacao_2_id = 1235035964556972099
-cargo1_id = 1235035964573880397
-cargo2_id = 1242992334640255078  # Funcionário
-cargo_para_remover_id = 1258746878946709566
+cargo_visualizacao_1_id = 1246977272880037956
+cargo_visualizacao_2_id = 1246977272859332662
+cargo1_id = 1246977272867586188
+cargo2_id = 1246977272867586186  # Funcionário
+cargo_para_remover_id = 1246977272859332661
 
 # IDs dos cargos para promoção
-cargo_estagiario_id = 1235035964573880397 # Estagiário
+cargo_estagiario_id = 1246977272867586188 # Estagiário
 cargo_mecanico_id = 1235035964573880398 # Mecânico
+cargo_mecanico_senior_id = 1246977272880037952 # Mecânico Sênior
 
 # ID do cargo de devedor
-cargo_devedor_id = 1255196288698552321
-cargo_devedor_adv_id = 1255196379609825350
+cargo_devedor_id = 1294143105175519302
+cargo_devedor_adv_id = 1246977272859332663
 
 # ID do canal de log/relatório de contratação
-canal_log_contratacao_id = 1249235893634469888
+canal_log_contratacao_id = 1246977274826461268
 # ID do canal de log/relatório de promoção
-canal_log_promocao_id = 1246992211749503085
+canal_log_promocao_id = 1246977274297978954
 
 #ID do cargo exonerado
-cargo_exonerado_id = 1235035964556972093
-
-# Configurações dos intents
-intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents)
-
-# IDs dos cargos de devedores
-roles_ids = {
-    'adv1': 1235035964556972100,
-    'adv2': 1235035964556972101,
-    'adv3': 1235035964573880390,
-    'adv4': 1255195989778628739,
-    'rebaixado': 1235035964556972097,
-    'devedor_manutencao': 1255196288698552321,
-    'devedor_adv': 1255196379609825350
-}
-
-# Configurações dos intents
-intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents)
+cargo_exonerado_id = 1246977274297978953
 
 # IDs dos cargos que você deseja incluir no ranking
 cargos_desejados = [
-    1235035964573880397, 1235035964573880398, 1235035964556972094,
-    1235035964599042090, 1235035964599042091, 1235035964599042094,
-    1235035964599042095
+    1246977272867586188, 1235035964573880398, 1246977272880037952,
+    1246977272880037953, 1246977272880037954, 1246977272892756109,
+    1246977272892756110
 ]
 
-# Data de início e fim da contagem
+# Data de início e fim da contagem ~~MENSAL~~
 data_inicio = datetime(2024, 10, 1, tzinfo=timezone.utc)  # Define a data de início com fuso horário UTC
 data_fim = datetime(2024, 11, 1, tzinfo=timezone.utc)     # Define a data de fim com fuso horário UTC
 
@@ -97,15 +84,9 @@ relatorios_path = 'relatorios.json'
 
 # Carregar dados de relatórios
 relatorios = {}
-if os.path.exists(relatorios_path):
-    try:
-        with open(relatorios_path, 'r') as f:
-            relatorios = json.load(f)
-    except FileNotFoundError:
-        pass  # Se o arquivo não existir, o dicionário já está vazio
 
 # IDs dos cargos com permissão
-cargos_permitidos = [1235035964556972099, 1235035964556972095]
+cargos_permitidos = [1246977272859332662, 1246977272880037956]
 
 # Configurações dos intents
 intents = discord.Intents.all()
@@ -122,18 +103,18 @@ canais_voz_ids = [
 roles_hierarchy = {
     1235035964624080990: "CEO",
     1235035964624080989: "👑",
-    1235035964624080987: "prefeitura",
-    1235035964599042095: "chefe",
-    1235035964599042094: "sub chefe",
-    1235035964599042091: "gerente",
+    1246977272892756114: "prefeitura",
+    1246977272892756110: "chefe",
+    1246977272892756109: "sub chefe",
+    1246977272880037954: "gerente",
     1235035964599042090: "sub-gerente",
-    1235035964556972094: "mecânico senior",
+    1246977272880037952: "mecânico senior",
     1235035964573880398: "mecânico",
-    1235035964573880397: "estagiário"
+    1246977272867586188: "estagiário"
 }
 
 # ID do canal onde a hierarquia será postada
-canal_hierarquia_id = 1250878994346414121 # Substitua pelo ID do canal real
+canal_hierarquia_id = 1246977273693999219 # Substitua pelo ID do canal real
 
 # Mensagem que será editada
 mensagem_hierarquia = None
@@ -147,7 +128,7 @@ consultar_horas_id = 1246990807140007997
 
 async def has_allowed_role(interaction: discord.Interaction):
     # Lista de IDs dos cargos permitidos
-    allowed_roles = [1235035964556972099, 1235035964556972095]
+    allowed_roles = [1246977272859332662, 1246977272880037956]
 
     # Verifica se o usuário tem algum dos cargos permitidos
     for role in interaction.user.roles:
@@ -155,7 +136,6 @@ async def has_allowed_role(interaction: discord.Interaction):
             return True
     
     return False
-
 
 @bot.tree.command(name="consultarelat", description="Consulta relatórios de um usuário em um período.")
 @app_commands.describe(user="Usuário a ser consultado", data_inicio="Data de início (DD/MM/YYYY)", data_fim="Data de fim (DD/MM/YYYY)")
@@ -181,7 +161,7 @@ async def consultarelat(interaction: discord.Interaction, user: discord.User, da
     total_relatorios = 0
 
     # Canal #relat-tunning
-    canal_relatorios = bot.get_channel(1235035965945413649)
+    canal_relatorios = bot.get_channel(1246977274083803213)
 
     if not canal_relatorios:
         await interaction.response.send_message("Erro: Canal de relatórios não encontrado.", ephemeral=True)
@@ -402,7 +382,7 @@ async def promover_error(interaction: discord.Interaction, error):
 
 # Comando /devedores
 @bot.tree.command(name="devedores", description="Adicionar o cargo de devedor e o emoji de devedor no nome dos usuários.")
-@app_commands.describe(cargo="Cargo a ser verificado (mecânico ou estagiário). Opcional.")
+@app_commands.describe(cargo="Cargo a ser verificado (mec, estag ou todos).")
 @app_commands.checks.has_any_role(cargo_visualizacao_1_id, cargo_visualizacao_2_id)
 async def devedores(interaction: discord.Interaction, cargo: str = None):
     try:
@@ -411,14 +391,14 @@ async def devedores(interaction: discord.Interaction, cargo: str = None):
         cargo_devedor_adv = guild.get_role(cargo_devedor_adv_id)
 
         # Determina os cargos participantes
-        if cargo is None or cargo.lower() == "ambos":
-            cargos_participantes = [cargo_mecanico_id, cargo_estagiario_id]
-        elif cargo.lower() == "mecânico":
-            cargos_participantes = [cargo_mecanico_id]
-        elif cargo.lower() == "estagiário":
+        if cargo is None or cargo.lower() == "todos":
+            cargos_participantes = [cargo_mecanico_id, cargo_mecanico_senior_id, cargo_estagiario_id]
+        elif cargo.lower() == "mec":
+            cargos_participantes = [cargo_mecanico_id, cargo_mecanico_senior_id]  # Inclui os dois cargos aqui
+        elif cargo.lower() == "estag":
             cargos_participantes = [cargo_estagiario_id]
         else:
-            await interaction.response.send_message("Cargo inválido. Use 'mecânico', 'estagiário' ou deixe em branco para ambos.", ephemeral=True)
+            await interaction.response.send_message("Cargo inválido. Use 'mec', 'estag' ou deixe em branco para todos.", ephemeral=True)
             return
 
         for cargo_id in cargos_participantes:
@@ -427,14 +407,20 @@ async def devedores(interaction: discord.Interaction, cargo: str = None):
                 await member.add_roles(cargo_devedor)
                 nome_contratado = member.display_name.split("・")[1].split(" | ")[0]
                 id_cidade = member.display_name.split(" | ")[1]
+                
                 if cargo_id == cargo_mecanico_id:
                     novo_nome = f"🔧👎🏻・{nome_contratado} | {id_cidade}"
                     if cargo_devedor_adv in member.roles:
                         novo_nome = f"🔧👎🏻❌・{nome_contratado} | {id_cidade}"
+                elif cargo_id == cargo_mecanico_senior_id:  # Verifica para o cargo mecânico sênior
+                    novo_nome = f"🏆👎🏻・{nome_contratado} | {id_cidade}"
+                    if cargo_devedor_adv in member.roles:
+                        novo_nome = f"🏆👎🏻❌・{nome_contratado} | {id_cidade}"
                 else:
                     novo_nome = f"🔨👎🏻・{nome_contratado} | {id_cidade}"
                     if cargo_devedor_adv in member.roles:
                         novo_nome = f"🔨👎🏻❌・{nome_contratado} | {id_cidade}"
+                        
                 await member.edit(nick=novo_nome)
 
         await interaction.response.send_message("Os devedores foram marcados com sucesso.", ephemeral=True)
@@ -474,6 +460,10 @@ async def pago(interaction: discord.Interaction, usuario: str):
                 novo_nome = f"🔧✅・{nome_contratado} | {id_cidade}"
                 if cargo_devedor_adv in devedor.roles:
                     novo_nome = f"🔧✅❌・{nome_contratado} | {id_cidade}"
+            elif any(role.id == cargo_mecanico_senior_id for role in devedor.roles):
+                novo_nome = f"🏆✅・{nome_contratado} | {id_cidade}"
+                if cargo_devedor_adv in devedor.roles:
+                    novo_nome = f"🏆✅❌・{nome_contratado} | {id_cidade}"
             elif any(role.id == cargo_estagiario_id for role in devedor.roles):
                 novo_nome = f"🔨✅・{nome_contratado} | {id_cidade}"
                 if cargo_devedor_adv in devedor.roles:
@@ -509,9 +499,14 @@ async def limpar(interaction: discord.Interaction):
         guild = interaction.guild
         cargo_estagiario = guild.get_role(cargo_estagiario_id)
         cargo_mecanico = guild.get_role(cargo_mecanico_id)
+        cargo_mecanico_senior = guild.get_role(cargo_mecanico_senior_id)  # Adicionado o cargo_mecanico_senior_id
         cargo_devedor_adv = guild.get_role(cargo_devedor_adv_id)
         
-        membros_para_limpar = [m for m in guild.members if cargo_estagiario in m.roles or cargo_mecanico in m.roles]
+        # Adiciona os membros com os cargos mecânico, mecânico sênior ou estagiário à lista de membros para limpar
+        membros_para_limpar = [
+            m for m in guild.members 
+            if cargo_estagiario in m.roles or cargo_mecanico in m.roles or cargo_mecanico_senior in m.roles
+        ]
 
         for membro in membros_para_limpar:
             nome_contratado = membro.display_name.split("・")[1].split(" | ")[0]
@@ -521,6 +516,10 @@ async def limpar(interaction: discord.Interaction):
                 novo_nome = f"🔧・{nome_contratado} | {id_cidade}"
                 if cargo_devedor_adv in membro.roles:
                     novo_nome = f"🔧❌・{nome_contratado} | {id_cidade}"
+            elif cargo_mecanico_senior in membro.roles:  # Adicionada verificação para mecânico sênior
+                novo_nome = f"🏆・{nome_contratado} | {id_cidade}"
+                if cargo_devedor_adv in membro.roles:
+                    novo_nome = f"🏆❌・{nome_contratado} | {id_cidade}"
             elif cargo_estagiario in membro.roles:
                 novo_nome = f"🔨・{nome_contratado} | {id_cidade}"
                 if cargo_devedor_adv in membro.roles:
@@ -751,14 +750,14 @@ async def verificar_interacao():
 
 async def buscar_mensagem_ranking(canal):
     async for mensagem in canal.history(limit=100):
-        if mensagem.author == bot.user and mensagem.embeds and mensagem.embeds[0].title == "👑 Ranking de Relatórios de Tunning":
+        if mensagem.author == bot.user and mensagem.embeds and mensagem.embeds[0].title == "👑 Ranking de Relatórios de Tunning Mensal":
             return mensagem
     return None
 
-async def carregar_relatorios_antigos(channel):
+async def carregar_relatorios_antigos(channelmensal):
     global relatorios
     print(f"Carregando relatórios antigos entre {data_inicio} e {data_fim}...")
-    async for message in channel.history(after=data_inicio, before=data_fim, limit=None):  # Busca todas as mensagens dentro do período
+    async for message in channelmensal.history(after=data_inicio, before=data_fim, limit=None):  # Busca todas as mensagens dentro do período
         print(f"Processando mensagem antiga: {message.content}")
         await processar_relatorio(message, atualizacao_antiga=True)
     print("Carregamento de relatórios antigos concluído.")
@@ -791,16 +790,16 @@ async def exibir_ranking():
     global mensagem_ranking
 
     # Buscar o canal correto para o ranking
-    channel = bot.get_channel(canal_ranking_id)
+    channelmensal = bot.get_channel(canal_ranking_id)
 
-    if not channel:
+    if not channelmensal:
         print("Erro: Canal de ranking não encontrado.")
         return
 
     # Buscar membros com os cargos desejados e seus totais de relatórios
     membros_validos = []
     for role_id in cargos_desejados:
-        role = channel.guild.get_role(role_id)
+        role = channelmensal.guild.get_role(role_id)
         if role:
             membros_validos.extend(role.members)
 
@@ -818,8 +817,8 @@ async def exibir_ranking():
     current_time = datetime.now(timezone_brasil).strftime('%H:%M:%S')
 
     # Criar o embed do ranking
-    embed = discord.Embed(title="👑 Ranking de Relatórios de Tunning", description=ranking_str, color=0xffa500)
-    embed.set_thumbnail(url=channel.guild.icon.url)
+    embed = discord.Embed(title="👑 Ranking de Relatórios de Tunning Mensal", description=ranking_str, color=0xffa500)
+    embed.set_thumbnail(url=channelmensal.guild.icon.url)
     embed.add_field(name="\u200b", value=f"**📬 Total de relatórios: {sum(relatorios.values())}**", inline=False)
     embed.set_footer(text=f"📅 Desde\n`{data_inicio.strftime('%d %B')}` \n\n ⏰ Última atualização: {current_time}")
 
@@ -830,17 +829,17 @@ async def exibir_ranking():
             await mensagem_ranking.edit(embed=embed)
         else:
             # Enviar uma nova mensagem se mensagem_ranking não existir
-            mensagem_ranking = await channel.send(embed=embed)
+            mensagem_ranking = await channelmensal.send(embed=embed)
     except discord.errors.NotFound:
         # Enviar uma nova mensagem se a mensagem existente não for encontrada (foi deletada)
-        mensagem_ranking = await channel.send(embed=embed)
+        mensagem_ranking = await channelmensal.send(embed=embed)
     except discord.errors.HTTPException as e:
         print(f"Erro ao atualizar o ranking: {e}")
 
 # Evento para registrar relatórios
 @bot.event
 async def on_message(message):
-    if message.channel.id == 1235035965945413649:  # Canal #relat-tunning
+    if message.channelmensal.id == 1246977274083803213:  # Canal #relat-tunning
         # Converter a data da mensagem para offset-aware (UTC) e ajustar para o fuso horário de São Paulo
         message_created_at_aware = message.created_at.replace(tzinfo=timezone.utc).astimezone(timezone_brasil)
         if data_inicio <= message_created_at_aware < data_fim:
@@ -851,13 +850,13 @@ async def on_message(message):
 # Evento para reduzir a contagem de relatórios se a mensagem for apagada
 @bot.event
 async def on_message_delete(message):
-    if message.channel.id == 1235035965945413649:  # Canal #relat-tunning
+    if message.channelmensal.id == 1246977274083803213:  # Canal #relat-tunning
         await processar_relatorio_remocao(message)
 
 # Evento para atualizar a contagem de relatórios se a mensagem for editada
 @bot.event
 async def on_message_edit(before, after):
-    if before.channel.id == 1235035965945413649:  # Canal #relat-tunning
+    if before.channelmensal.id == 1246977274083803213:  # Canal #relat-tunning
         await processar_relatorio_remocao(before)
         await processar_relatorio(after)
 
@@ -883,7 +882,6 @@ async def processar_relatorio_remocao(message):
             print(f"Erro: ID {user_id} não encontrado na lista de membros.")  # Mensagem de erro para ID não encontrado
 
     await exibir_ranking()  # Atualiza o ranking imediatamente
-
 
 # ------------------------------------------------------------------------------FIM RANK RELATÓRIOS---------------------------------------
 # Tarefa para salvar dados periodicamente
@@ -913,35 +911,6 @@ async def on_member_remove(member):
     channel = guild.get_channel(channel_id)
     if channel:
         await channel.send(embed=embed)
-
-channel_id = 1255178131707265066
-hierarchy_message_id = None  # Variável para armazenar o ID da mensagem de hierarquia
-
-# Função para construir a hierarquia de devedores
-async def build_hierarchy(guild):
-    hierarchy_text = "** # Hierarquia: Devedores ⛔**\n"
-    for role_name, role_id in roles_ids.items():
-        role = get(guild.roles, id=role_id)
-        members_with_role = role.members
-        hierarchy_text += f"# {role.mention} : {len(members_with_role)}\n"
-        for member in members_with_role:
-            hierarchy_text += f"{member.mention}\n"
-    return hierarchy_text
-
-# Evento on_member_update para atualizar a hierarquia dinamicamente
-@bot.event
-async def on_member_update(before, after):
-    global hierarchy_message_id
-    guild = after.guild
-    channel = bot.get_channel(channel_id)
-    
-    # Verificar se houve mudança nos cargos do membro
-    if before.roles != after.roles:
-        hierarchy_text = await build_hierarchy(guild)
-        
-        if hierarchy_message_id is not None:
-            message = await channel.fetch_message(hierarchy_message_id)
-            await message.edit(content=hierarchy_text)
 
     #~~~~~~~~~~~~~~~~~~~~---------------------------BOT DE HORAS-----------------------------~~~~~~~~~~~~~~~~~~~~
 
@@ -1100,12 +1069,19 @@ def carregar_dados_de_arquivo():
     except FileNotFoundError:
         print("Nenhum backup encontrado. Iniciando sem dados de backup.")
 
+# Função para buscar a mensagem de hierarquia existente no canal
+async def buscar_mensagem_hierarquia(channel):
+    async for mensagem in channel.history(limit=100):
+        if mensagem.author == bot.user and mensagem.content.startswith("# <@&"):
+            return mensagem
+    return None
+
 # Função para atualizar CANAL DA HIERARQUIA
 async def atualizar_hierarquia(guild):
     global mensagem_hierarquia
 
     hierarquia_str = ""
-    
+
     # Construindo a string da hierarquia
     for role_id, role_name in roles_hierarchy.items():
         role = guild.get_role(role_id)
@@ -1115,14 +1091,18 @@ async def atualizar_hierarquia(guild):
                 hierarquia_str += f"# <@&{role_id}>\n"  # Usando menção real ao cargo
                 hierarquia_str += "\n".join(members)
                 hierarquia_str += "\n\n"  # Espaço entre os cargos
-    
+
     # Encontrar o canal de hierarquia
     channel = guild.get_channel(canal_hierarquia_id)
-    
+
     if not channel:
         print("Erro: Canal de hierarquia não encontrado.")
         return
-    
+
+    # Buscar a mensagem existente, se ainda não foi armazenada
+    if not mensagem_hierarquia:
+        mensagem_hierarquia = await buscar_mensagem_hierarquia(channel)
+
     # Se já existir uma mensagem, edite-a, senão, envie uma nova mensagem
     if mensagem_hierarquia:
         try:
@@ -1145,7 +1125,7 @@ async def on_guild_role_update(before, after):
 # Evento on_ready para enviar a prova, a mensagem inicial da hierarquia, carregar comandos slash e o bot de horas
 @bot.event
 async def on_ready():
-    #canal hierarquia
+    # Canal hierarquia
     guild = bot.guilds[0]  # Supondo que o bot esteja em um único servidor
     await atualizar_hierarquia(guild)
 
@@ -1166,34 +1146,14 @@ async def on_ready():
 
     # Carregar dados de arquivo
     carregar_dados_de_arquivo()
-
-    global hierarchy_message_id
-    guild = bot.guilds[0]
-    channel = bot.get_channel(channel_id)
     
-    try:
-        await bot.tree.sync()
-        print("Sincronização de comandos concluída.")
-    except Exception as e:
-        print(f"Erro ao sincronizar comandos: {e}")
-
-    hierarchy_text = await build_hierarchy(guild)
-
-    # Enviar a mensagem inicial ou editar a mensagem existente
-    if hierarchy_message_id is None:
-        message = await channel.send(hierarchy_text)
-        hierarchy_message_id = message.id
-    else:
-        message = await channel.fetch_message(hierarchy_message_id)
-        await message.edit(content=hierarchy_text)
-
-    # Criar um dicionário de membros por ID
-    global membros_por_id
-    membros_por_id = {membro.id: membro for membro in bot.get_all_members()}
+        # Criar um dicionário de membros por ID ~~RANKING mensal
+    global membros_por_id1
+    membros_por_id1 = {membro.id: membro for membro in bot.get_all_members()}
 
     # Carregar relatórios antigos e exibir o ranking inicial
     try:
-        canal_relatorios = bot.get_channel(1235035965945413649)  # Canal #relat-tunning
+        canal_relatorios = bot.get_channel(1246977274083803213)  # Canal #relat-tunning
         if canal_relatorios:
             await bot.wait_until_ready()  # Esperar o bot estar pronto
             await carregar_relatorios_antigos(canal_relatorios)  # Carregar relatórios antigos
@@ -1202,7 +1162,7 @@ async def on_ready():
         print("Erro: Canal de relatórios não encontrado.")
     except discord.errors.Forbidden:
         print("Erro: O bot não tem permissão para ler o histórico de mensagens do canal.")
-    
+
     # Enviar ou editar a mensagem inicial (relacionada à hierarquia ou outra funcionalidade)
     await enviar_ou_editar_mensagem_inicial()
 
@@ -1212,5 +1172,7 @@ async def on_ready():
 
     print(f'Bot conectado como {bot.user}')
 
+load_dotenv()
 # Rodar o bot com o token do ambiente
 bot.run(os.getenv("DISCORD_TOKEN"))
+update_hierarchy.start()
