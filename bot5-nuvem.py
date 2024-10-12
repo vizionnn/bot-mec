@@ -622,10 +622,10 @@ questoes_fechadas = [
                 "Dentro da Mecânica: R$ 8.000, Fora: R$10,000",
                 "Dentro da Mecânica: R$ 5.000, Fora: R$4,000"],
      "correta": 0},
-    {"pergunta": "Qual a forma correta de desvirar e consertar um carro?",
-     "opcoes": ["Mentalizar F9 e procurar no menu a opção desvirar e consertar o carro",
-                "Apenas escrever desvirar e consertar no F8 ou /desvirar e /consertar",
-                "Escrever consertar no F8"],
+    {"pergunta": "Qual a forma correta de desvirar e reparar um carro?",
+     "opcoes": ["Mentalizar F9 e procurar no menu a opção desvirar e reparar o carro",
+                "Apenas escrever desvirar e reparar no F8 ou /desvirar e /reparar",
+                "Escrever reparar no F8"],
      "correta": 1}
 ]
 
