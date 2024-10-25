@@ -125,6 +125,21 @@ canal_hierarquia_id = 1250878994346414121 # Substitua pelo ID do canal real
 # Mensagem que será editada
 mensagem_hierarquia = None
 
+# IDs dos cargos e canais
+CARGO_IDS = {
+    "ADV1": 1235035964556972100,
+    "ADV2": 1235035964556972101,
+    "ADV3": 1235035964573880390,
+    "ADV4": 1255195989778628739,
+    "REBAIXADO": 1235035964556972097,
+    "DEVEDOR_MANUTENCAO": 1255196288698552321,
+    "DEVEDOR_ADV": 1255196379609825350,
+    "EXONERADO": 1235035964556972093
+}
+
+# ID do canal "devedores"
+CANAL_DEVEDORES_ID = 1255178131707265066
+
 #_______________________________________________________________________________
 
 # fim variáveis, inicio bot de comandos
@@ -548,6 +563,7 @@ async def exonerar(interaction: discord.Interaction, ids: str):
     try:
         guild = interaction.guild
         cargo_exonerado = guild.get_role(cargo_exonerado_id)
+        print(f"Cargo exonerado: {cargo_exonerado}")
 
         ids_discord = []
         for id_str in ids.split(","):
@@ -557,15 +573,22 @@ async def exonerar(interaction: discord.Interaction, ids: str):
             else:
                 ids_discord.append(int(id_str))  # Convert to int if it's a plain user ID
 
+        print(f"IDs extraídos: {ids_discord}")
+
         for id_discord in ids_discord:
             membro = guild.get_member(id_discord)
             if membro:
-                nome_contratado = membro.display_name.split("・")[1].split(" | ")[0]
-                id_cidade = membro.display_name.split(" | ")[1]
-                novo_nome = f"[EX]・{nome_contratado} | {id_cidade}"
+                print(f"Processando membro: {membro.display_name} ({membro.id})")
+                if "・" in membro.display_name and " | " in membro.display_name:
+                    nome_contratado = membro.display_name.split("・")[1].split(" | ")[0]
+                    id_cidade = membro.display_name.split(" | ")[1]
+                    novo_nome = f"[EX]・{nome_contratado} | {id_cidade}"
+                else:
+                    novo_nome = f"[EX]・{membro.display_name}"
 
                 # Remover todos os cargos e adicionar o cargo exonerado
                 await membro.edit(roles=[cargo_exonerado], nick=novo_nome)
+                print(f"Membro {membro.display_name} exonerado com novo nick: {novo_nome}")
 
         await interaction.response.send_message(f"Usuários exonerados com sucesso.", ephemeral=True)
     except Exception as e:
@@ -1128,9 +1151,59 @@ async def on_member_update(before, after):
 async def on_guild_role_update(before, after):
     await atualizar_hierarquia(before.guild)
 
+# Função para atualizar a embed
+async def atualizar_embed_devedores(guild):
+    canal = bot.get_channel(CANAL_DEVEDORES_ID)
+    if canal is None:
+        print("Canal de devedores não encontrado.")
+        return
+
+    embed = discord.Embed(title="Hierarquia: Devedores", color=discord.Color.red())
+    
+    # Montando a hierarquia com base nos cargos
+    for cargo_nome, cargo_id in CARGO_IDS.items():
+        cargo = guild.get_role(cargo_id)
+        if cargo is None:
+            continue
+        
+        membros_com_cargo = [membro.mention for membro in guild.members if cargo in membro.roles]
+        membros_texto = '\n'.join(membros_com_cargo) if membros_com_cargo else "0"
+        
+        embed.add_field(name=f"{cargo.mention}:", value=membros_texto, inline=False)
+    
+    # Editar ou enviar a mensagem no canal
+    mensagem_existente = None
+    async for mensagem in canal.history(limit=100):
+        if mensagem.author == bot.user and mensagem.embeds:
+            mensagem_existente = mensagem
+            break
+    
+    if mensagem_existente:
+        await mensagem_existente.edit(embed=embed)
+    else:
+        await canal.send(embed=embed)
+
+# Evento para atualizar a hierarquia quando o membro receber ou perder um cargo
+@bot.event
+async def on_member_update(before, after):
+    # Verificar se algum cargo relacionado foi adicionado ou removido
+    cargos_anteriores = set(before.roles)
+    cargos_atualizados = set(after.roles)
+    
+    cargos_adicionados = cargos_atualizados - cargos_anteriores
+    cargos_removidos = cargos_anteriores - cargos_atualizados
+    
+    if any(cargo.id in CARGO_IDS.values() for cargo in cargos_adicionados) or \
+       any(cargo.id in CARGO_IDS.values() for cargo in cargos_removidos):
+        await atualizar_embed_devedores(after.guild)
+
 # Evento on_ready para enviar a prova, a mensagem inicial da hierarquia, carregar comandos slash e o bot de horas
 @bot.event
 async def on_ready():
+    #iniciar canal devedores
+    for guild in bot.guilds:
+        await atualizar_embed_devedores(guild)
+
     # Canal hierarquia
     guild = bot.guilds[0]  # Supondo que o bot esteja em um único servidor
     await atualizar_hierarquia(guild)
