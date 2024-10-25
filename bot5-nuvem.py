@@ -1169,7 +1169,7 @@ async def atualizar_embed_devedores(guild):
         membros_com_cargo = [membro.mention for membro in guild.members if cargo in membro.roles]
         membros_texto = '\n'.join(membros_com_cargo) if membros_com_cargo else "0"
         
-        embed.add_field(name=f"{cargo.mention}:", value=membros_texto, inline=False)
+        embed.add_field(name=f"{cargo.nome}:", value=membros_texto, inline=False)
     
     # Editar ou enviar a mensagem no canal
     mensagem_existente = None
