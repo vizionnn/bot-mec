@@ -58,6 +58,8 @@ canal_log_promocao_id = 1246992211749503085
 
 #ID do cargo exonerado
 cargo_exonerado_id = 1235035964556972093
+canal_log_exoneracao_id = 1249236243448070306  # Canal onde o log será enviado
+
 
 # IDs dos cargos que você deseja incluir no ranking
 cargos_desejados = [
@@ -93,10 +95,6 @@ if os.path.exists(relatorios_path):
 
 # IDs dos cargos com permissão
 cargos_permitidos = [1235035964556972099, 1235035964556972095]
-
-# Configurações dos intents
-intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents)
 
 # IDs dos canais de voz a serem monitorados
 canais_voz_ids = [
@@ -557,28 +555,25 @@ async def limpar(interaction: discord.Interaction):
 
 # Comando /exonerar
 @bot.tree.command(name="exonerar", description="Remover todos os cargos do usuário e adicionar o cargo de exonerado.")
-@app_commands.describe(ids="IDs ou menções dos usuários a serem exonerados, separados por vírgula")
+@app_commands.describe(ids="IDs ou menções dos usuários a serem exonerados, separados por vírgula", motivo="Motivo da exoneração")
 @app_commands.checks.has_any_role(cargo_visualizacao_1_id, cargo_visualizacao_2_id)
-async def exonerar(interaction: discord.Interaction, ids: str):
+async def exonerar(interaction: discord.Interaction, ids: str, motivo: str):
     try:
         guild = interaction.guild
         cargo_exonerado = guild.get_role(cargo_exonerado_id)
-        print(f"Cargo exonerado: {cargo_exonerado}")
 
         ids_discord = []
         for id_str in ids.split(","):
             id_str = id_str.strip()
             if id_str.startswith("<@") and id_str.endswith(">"):
-                ids_discord.append(int(id_str[3:-1].replace("!", "")))  # Extract user ID from mention
+                ids_discord.append(int(id_str[3:-1].replace("!", "")))  # Extrai o ID do usuário a partir da menção
             else:
-                ids_discord.append(int(id_str))  # Convert to int if it's a plain user ID
-
-        print(f"IDs extraídos: {ids_discord}")
+                ids_discord.append(int(id_str))  # Converte para int se for um ID direto
 
         for id_discord in ids_discord:
             membro = guild.get_member(id_discord)
             if membro:
-                print(f"Processando membro: {membro.display_name} ({membro.id})")
+                # Formata o novo nome do membro exonerado
                 if "・" in membro.display_name and " | " in membro.display_name:
                     nome_contratado = membro.display_name.split("・")[1].split(" | ")[0]
                     id_cidade = membro.display_name.split(" | ")[1]
@@ -586,11 +581,34 @@ async def exonerar(interaction: discord.Interaction, ids: str):
                 else:
                     novo_nome = f"[EX]・{membro.display_name}"
 
-                # Remover todos os cargos e adicionar o cargo exonerado
+                # Remove todos os cargos e adiciona o cargo de exonerado
                 await membro.edit(roles=[cargo_exonerado], nick=novo_nome)
-                print(f"Membro {membro.display_name} exonerado com novo nick: {novo_nome}")
 
-        await interaction.response.send_message(f"Usuários exonerados com sucesso.", ephemeral=True)
+                # Envia mensagem privada ao usuário exonerado
+                mensagem_privada = (
+                    "╔═══════════════════════════════════\n"
+                    "║ Exoneração 🚨 \n"
+                    "╠═══════════════════════════════════\n"
+                    f"║ Quem exonerou: {interaction.user.mention}\n"
+                    f"║ Exonerado: {membro.mention}\n"
+                    f"║ Motivo: {motivo}\n"
+                    "╚═══════════════════════════════════"
+                )
+                try:
+                    await membro.send(mensagem_privada)
+                except discord.Forbidden:
+                    print(f"Não foi possível enviar mensagem privada para {membro.display_name}")
+
+                # Log de exoneração no canal específico
+                canal_log = guild.get_channel(canal_log_exoneracao_id)
+                if canal_log:
+                    await canal_log.send(mensagem_privada)
+                else:
+                    print("Canal de log de exoneração não encontrado.")
+
+        # Confirmação de sucesso
+        await interaction.response.send_message("Usuários exonerados com sucesso.", ephemeral=True)
+
     except Exception as e:
         print(f"Ocorreu um erro: {e}")
         await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
