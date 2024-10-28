@@ -561,19 +561,19 @@ async def exonerar(interaction: discord.Interaction, ids: str, motivo: str):
     try:
         guild = interaction.guild
         cargo_exonerado = guild.get_role(cargo_exonerado_id)
+        executor = interaction.user.mention
 
         ids_discord = []
         for id_str in ids.split(","):
             id_str = id_str.strip()
             if id_str.startswith("<@") and id_str.endswith(">"):
-                ids_discord.append(int(id_str[3:-1].replace("!", "")))  # Extrai o ID do usuário a partir da menção
+                ids_discord.append(int(id_str[3:-1].replace("!", "")))  # Extrai o ID do usuário da menção
             else:
                 ids_discord.append(int(id_str))  # Converte para int se for um ID direto
 
         for id_discord in ids_discord:
             membro = guild.get_member(id_discord)
             if membro:
-                # Formata o novo nome do membro exonerado
                 if "・" in membro.display_name and " | " in membro.display_name:
                     nome_contratado = membro.display_name.split("・")[1].split(" | ")[0]
                     id_cidade = membro.display_name.split(" | ")[1]
@@ -581,32 +581,31 @@ async def exonerar(interaction: discord.Interaction, ids: str, motivo: str):
                 else:
                     novo_nome = f"[EX]・{membro.display_name}"
 
-                # Remove todos os cargos e adiciona o cargo de exonerado
+                # Remover todos os cargos e adicionar o cargo exonerado
                 await membro.edit(roles=[cargo_exonerado], nick=novo_nome)
 
-                # Envia mensagem privada ao usuário exonerado
-                mensagem_privada = (
-                    "╔═══════════════════════════════════\n"
-                    "║ Exoneração 🚨 \n"
-                    "╠═══════════════════════════════════\n"
-                    f"║ Quem exonerou: {interaction.user.mention}\n"
+                # Mensagem de log individual para o usuário exonerado
+                mensagem_exoneracao = (
+                    f"╔═══════════════════════════════════\n"
+                    f"║ Exoneração 🚨 \n"
+                    f"╠═══════════════════════════════════\n"
+                    f"║ Quem exonerou: {executor}\n"
                     f"║ Exonerado: {membro.mention}\n"
                     f"║ Motivo: {motivo}\n"
-                    "╚═══════════════════════════════════"
+                    f"╚═══════════════════════════════════"
                 )
+
+                # Enviar mensagem no privado do usuário exonerado
                 try:
-                    await membro.send(mensagem_privada)
+                    await membro.send(mensagem_exoneracao)
                 except discord.Forbidden:
-                    print(f"Não foi possível enviar mensagem privada para {membro.display_name}")
+                    print(f"Não foi possível enviar mensagem para {membro.display_name} ({membro.id}) no privado.")
 
-                # Log de exoneração no canal específico
-                canal_log = guild.get_channel(canal_log_exoneracao_id)
+                # Enviar log no canal específico
+                canal_log = guild.get_channel(1249236243448070306)
                 if canal_log:
-                    await canal_log.send(mensagem_privada)
-                else:
-                    print("Canal de log de exoneração não encontrado.")
+                    await canal_log.send(mensagem_exoneracao)
 
-        # Confirmação de sucesso
         await interaction.response.send_message("Usuários exonerados com sucesso.", ephemeral=True)
 
     except Exception as e:
