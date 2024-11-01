@@ -69,8 +69,8 @@ cargos_desejados = [
 ]
 
 # Data de início e fim da contagem ~~MENSAL~~
-data_inicio = datetime(2024, 10, 1, tzinfo=timezone.utc)  # Define a data de início com fuso horário UTC
-data_fim = datetime(2024, 11, 1, tzinfo=timezone.utc)     # Define a data de fim com fuso horário UTC
+data_inicio = datetime(2024, 11, 1, tzinfo=timezone.utc)  # Define a data de início com fuso horário UTC
+data_fim = datetime(2024, 12, 1, tzinfo=timezone.utc)     # Define a data de fim com fuso horário UTC
 
 # Variável para armazenar a mensagem do ranking
 mensagem_ranking = None
@@ -277,6 +277,8 @@ async def dm_error(interaction: discord.Interaction, error):
         await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
         print(f"Erro no comando /dm: {error}")
 
+from datetime import datetime, timedelta
+
 # Comando /contratar
 @bot.tree.command(name="contratar", description="Contratar um novo membro e dar os cargos especificados.")
 @app_commands.describe(nome="Primeiro nome do usuário", id_cidade="ID da cidade", usuario="Usuário a ser contratado")
@@ -312,16 +314,21 @@ async def contratar(interaction: discord.Interaction, nome: str, id_cidade: str,
                 data_inicio = datetime.now().strftime("%d/%m/%Y")
                 data_exp = (datetime.now() + timedelta(days=3)).strftime("%d/%m/%Y")
 
-                mensagem_log = (
-                    f"NOME: {nome_contratado}\n"
-                    f"ID: {id_cidade}\n"
-                    f"DISCORD: {contratado.mention}\n"
-                    f"RECRUTADOR: {recrutador_mention}\n"
-                    f"ID RECRUTADOR: ({recrutador_id})\n"
-                    f"DATA DE INÍCIO DE CONTRATO: {data_inicio}\n"
-                    f"DATA DE PERÍODO DE EXP: {data_exp}"
+                # Criar o embed de contratação com a cor verde
+                embed_contratacao = discord.Embed(
+                    title="🔨 ┃ CONTRATAÇÃO ┃ 🔨",
+                    color=discord.Color.green()  # Verde
                 )
-                await canal_log.send(mensagem_log)
+                embed_contratacao.add_field(name="NOME", value=nome_contratado, inline=False)
+                embed_contratacao.add_field(name="ID", value=id_cidade, inline=False)
+                embed_contratacao.add_field(name="DISCORD", value=contratado.mention, inline=False)
+                embed_contratacao.add_field(name="RECRUTADOR", value=recrutador_mention, inline=False)
+                embed_contratacao.add_field(name="ID RECRUTADOR", value=f"({recrutador_id})", inline=False)
+                embed_contratacao.add_field(name="DATA DE INÍCIO DE CONTRATO", value=data_inicio, inline=False)
+                embed_contratacao.add_field(name="DATA DE PERÍODO DE EXP", value=data_exp, inline=False)
+
+                # Enviar o embed no canal de log
+                await canal_log.send(embed=embed_contratacao)
                 await interaction.response.send_message(f"Usuário {contratado.mention} contratado com sucesso!", ephemeral=True)
             except discord.errors.Forbidden:
                 await interaction.response.send_message("Permissões insuficientes para editar o usuário ou adicionar/remover cargos.", ephemeral=True)
@@ -331,6 +338,7 @@ async def contratar(interaction: discord.Interaction, nome: str, id_cidade: str,
         print(f"Ocorreu um erro: {e}")
         await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
 
+# Tratamento de erros específico para o comando /contratar
 @contratar.error
 async def contratar_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.MissingAnyRole):
@@ -358,6 +366,14 @@ async def promover(interaction: discord.Interaction, usuario: str):
         guild = interaction.guild
         promovido = guild.get_member(id_discord)
 
+        # Definir os cargos
+        cargo_estagiario = guild.get_role(cargo_estagiario_id)
+        cargo_mecanico = guild.get_role(cargo_mecanico_id)
+
+        # Armazenar os nomes dos cargos
+        cargo_estagiario_name = cargo_estagiario.name
+        cargo_mecanico_name = cargo_mecanico.name
+
         if promovido:
             nome_contratado = promovido.display_name.split("・")[1].split(" | ")[0]
             id_cidade = promovido.display_name.split(" | ")[1]
@@ -366,22 +382,26 @@ async def promover(interaction: discord.Interaction, usuario: str):
             try:
                 await promovido.edit(nick=novo_nome)
                 await promovido.add_roles(
-                    guild.get_role(cargo_mecanico_id),
+                    cargo_mecanico,
                     guild.get_role(cargo2_id)  # Mantém o cargo de funcionário
                 )
-                await promovido.remove_roles(guild.get_role(cargo_estagiario_id))
+                await promovido.remove_roles(cargo_estagiario)
 
                 canal_log = guild.get_channel(canal_log_promocao_id)
 
-                mensagem_log = (
-                    f"⏫ ┃ PROMOÇÃO DE CARGO ┃ ⏫\n\n"
-                    f"- CARGO ANTERIOR: <@&{cargo_estagiario_id}>\n"
-                    f"- CARGO ATUAL: <@&{cargo_mecanico_id}>\n"
-                    f"- PROMOVIDO POR: {promotor_mention}\n"
-                    f"- ID DE QUEM PROMOVEU: ({promotor_id})\n"
-                    f"- PROMOVIDO: {promovido.mention}"
+                # Criar o embed de promoção com a cor azul claro
+                embed_promocao = discord.Embed(
+                    title="⏫ ┃ PROMOÇÃO DE CARGO ┃ ⏫",
+                    color=discord.Color.from_str("#00bfff")  # Azul claro
                 )
-                await canal_log.send(mensagem_log)
+                embed_promocao.add_field(name="Cargo Anterior", value=cargo_estagiario_name, inline=False)
+                embed_promocao.add_field(name="Cargo Atual", value=cargo_mecanico_name, inline=False)
+                embed_promocao.add_field(name="Promovido Por", value=promotor_mention, inline=False)
+                embed_promocao.add_field(name="ID de Quem Promoveu", value=f"({promotor_id})", inline=False)
+                embed_promocao.add_field(name="Promovido", value=promovido.mention, inline=False)
+
+                # Enviar o embed no canal de log
+                await canal_log.send(embed=embed_promocao)
                 await interaction.response.send_message(f"Usuário {promovido.mention} promovido com sucesso!", ephemeral=True)
             except discord.errors.Forbidden:
                 await interaction.response.send_message("Permissões insuficientes para editar o usuário ou adicionar/remover cargos.", ephemeral=True)
@@ -391,6 +411,7 @@ async def promover(interaction: discord.Interaction, usuario: str):
         print(f"Ocorreu um erro: {e}")
         await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
 
+# Tratamento de erros específico para o comando /promover
 @promover.error
 async def promover_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.MissingAnyRole):
