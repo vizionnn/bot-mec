@@ -574,6 +574,7 @@ async def exonerar(interaction: discord.Interaction, ids: str, motivo: str):
         for id_discord in ids_discord:
             membro = guild.get_member(id_discord)
             if membro:
+                # Ajustar o nome de exibição do membro exonerado
                 if "・" in membro.display_name and " | " in membro.display_name:
                     nome_contratado = membro.display_name.split("・")[1].split(" | ")[0]
                     id_cidade = membro.display_name.split(" | ")[1]
@@ -584,27 +585,23 @@ async def exonerar(interaction: discord.Interaction, ids: str, motivo: str):
                 # Remover todos os cargos e adicionar o cargo exonerado
                 await membro.edit(roles=[cargo_exonerado], nick=novo_nome)
 
-                # Mensagem de log individual para o usuário exonerado
-                mensagem_exoneracao = (
-                    f"╔═══════════════════════════════════\n"
-                    f"║ Exoneração 🚨 \n"
-                    f"╠═══════════════════════════════════\n"
-                    f"║ Quem exonerou: {executor}\n"
-                    f"║ Exonerado: {membro.mention}\n"
-                    f"║ Motivo: {motivo}\n"
-                    f"╚═══════════════════════════════════"
-                )
+                # Criar embed para a mensagem de exoneração
+                embed = discord.Embed(title="Exoneração 🚨", color=discord.Color.red())
+                embed.add_field(name="Quem exonerou:", value=executor, inline=False)
+                embed.add_field(name="Exonerado:", value=membro.mention, inline=False)
+                embed.add_field(name="Nome:", value=membro.display_name, inline=False)
+                embed.add_field(name="Motivo:", value=motivo, inline=False)
 
-                # Enviar mensagem no privado do usuário exonerado
+                # Enviar embed no privado do usuário exonerado
                 try:
-                    await membro.send(mensagem_exoneracao)
+                    await membro.send(embed=embed)
                 except discord.Forbidden:
                     print(f"Não foi possível enviar mensagem para {membro.display_name} ({membro.id}) no privado.")
 
-                # Enviar log no canal específico
+                # Enviar embed de log no canal específico
                 canal_log = guild.get_channel(1249236243448070306)
                 if canal_log:
-                    await canal_log.send(mensagem_exoneracao)
+                    await canal_log.send(embed=embed)
 
         await interaction.response.send_message("Usuários exonerados com sucesso.", ephemeral=True)
 
