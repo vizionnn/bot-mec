@@ -273,8 +273,14 @@ async def consultarelat(interaction: discord.Interaction, user: discord.User, da
 
     await interaction.response.send_message(f"{user.mention} fez {total_relatorios} relatórios de {data_inicio} a {data_fim}.")
 
-#   comando /dm
-@tree.command(name="dm", description="Enviar mensagem privada para um usuário específico.")
+# Função de verificação de autorização
+def check_authorized_roles():
+    async def predicate(interaction: discord.Interaction):
+        return any(role.id in [123456, 654321] for role in interaction.user.roles)  # IDs de cargos autorizados
+    return app_commands.check(predicate)
+
+# Comando /dm
+@bot.tree.command(name="dm", description="Enviar mensagem privada para um usuário específico.")
 @app_commands.describe(user="Usuário alvo", mensagem="Mensagem a ser enviada")
 @check_authorized_roles()
 async def dm(interaction: discord.Interaction, user: discord.User, mensagem: str):
@@ -282,12 +288,16 @@ async def dm(interaction: discord.Interaction, user: discord.User, mensagem: str
     try:
         await user.send(mensagem)
         await interaction.response.send_message(f'Mensagem enviada para {user.mention}.', ephemeral=True)
-        await log_channel.send(
-            f'Usuário {interaction.user.mention} enviou a seguinte mensagem para {user.mention}:\n```\n{mensagem}\n```'
-        )
+        
+        # Log da mensagem no canal especificado
+        if log_channel:
+            await log_channel.send(
+                f'Usuário {interaction.user.mention} enviou a seguinte mensagem para {user.mention}:\n```\n{mensagem}\n```'
+            )
     except discord.Forbidden:
         await interaction.response.send_message(f'Não foi possível enviar a mensagem para {user.mention}.', ephemeral=True)
 
+# Tratamento de erros do comando /dm
 @dm.error
 async def dm_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.MissingPermissions):
@@ -295,8 +305,6 @@ async def dm_error(interaction: discord.Interaction, error):
     else:
         await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
         print(f"Erro no comando /dm: {error}")
-
-from datetime import datetime, timedelta
 
 # Comando /contratar
 @bot.tree.command(name="contratar", description="Contratar um novo membro e dar os cargos especificados.")
