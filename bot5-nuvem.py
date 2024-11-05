@@ -140,7 +140,7 @@ CARGO_IDS = {
 CANAL_DEVEDORES_ID = 1255178131707265066
 
 # IDs dos cargos de advertência
-CARGOS_ADVERTENCIA = {
+CARGOS_ADVERTENCIA_X = {
     "devedor adv": 1255196379609825350,
     "devedor manutenção": 1255196288698552321,
     "adv4": 1255195989778628739,
@@ -152,7 +152,7 @@ CARGOS_ADVERTENCIA = {
 }
 
 # ID do canal de log de advertências
-CANAL_LOG_ADVERTENCIA_ID = 1303200083772440577
+CANAL_LOG_ADVERTENCIA_ID_X = 1303200083772440577
 
 #_______________________________________________________________________________
 
@@ -657,57 +657,57 @@ async def exonerar_error(interaction: discord.Interaction, error):
 # Comando /adv
 @bot.tree.command(name="adv", description="Adicionar advertência(s) a um ou mais usuários.")
 @app_commands.describe(ids="IDs dos usuários, separados por vírgula", advs="Tipos de advertência, separados por vírgula", motivo="Motivo da advertência")
-@app_commands.checks.has_any_role(cargo_visualizacao_1_id, cargo_visualizacao_2_id)  # Substitua com os IDs corretos dos cargos que podem usar o comando
+@app_commands.checks.has_any_role(cargo_visualizacao_1_id, cargo_visualizacao_2_id)
 async def adv(interaction: discord.Interaction, ids: str, advs: str, motivo: str):
     try:
         # Convertendo os IDs e tipos de advertência para listas
-        ids = [int(id.strip()) for id in ids.split(",")]
-        advs = [adv.strip().lower() for adv in advs.split(",")]
+        x_ids = [int(id.strip()) for id in ids.split(",")]
+        x_advs = [adv.strip().lower() for adv in advs.split(",")]
 
-        guild = interaction.guild
-        autor = interaction.user.mention  # Quem aplicou a advertência
+        x_guild = interaction.guild
+        x_autor = interaction.user.mention  # Quem aplicou a advertência
 
         # Validar os tipos de advertência fornecidos
-        cargos_adicionar = [CARGOS_ADVERTENCIA[adv] for adv in advs if adv in CARGOS_ADVERTENCIA]
+        x_cargos_adicionar = [CARGOS_ADVERTENCIA_X[adv] for adv in x_advs if adv in CARGOS_ADVERTENCIA_X]
         
-        if not cargos_adicionar:
+        if not x_cargos_adicionar:
             await interaction.response.send_message("Nenhum tipo de advertência válido foi especificado.", ephemeral=True)
             return
 
         # Canal de log
-        canal_log = guild.get_channel(CANAL_LOG_ADVERTENCIA_ID)
+        x_canal_log = x_guild.get_channel(CANAL_LOG_ADVERTENCIA_ID_X)
 
         # Processar cada ID de usuário
-        for id_usuario in ids:
-            membro = guild.get_member(id_usuario)
-            if not membro:
-                await interaction.response.send_message(f"Usuário com ID {id_usuario} não encontrado.", ephemeral=True)
+        for x_id_usuario in x_ids:
+            x_membro = x_guild.get_member(x_id_usuario)
+            if not x_membro:
+                await interaction.response.send_message(f"Usuário com ID {x_id_usuario} não encontrado.", ephemeral=True)
                 continue
 
             # Adicionar os cargos de advertência
-            cargos_atuais = []
-            for cargo_id in cargos_adicionar:
-                cargo = guild.get_role(cargo_id)
-                if cargo:
-                    await membro.add_roles(cargo)
-                    cargos_atuais.append(cargo.name)
+            x_cargos_atuais = []
+            for x_cargo_id in x_cargos_adicionar:
+                x_cargo = x_guild.get_role(x_cargo_id)
+                if x_cargo:
+                    await x_membro.add_roles(x_cargo)
+                    x_cargos_atuais.append(x_cargo.name)
 
             # Criar o embed de advertência individual
             embed_advertencia = Embed(title="Advertência 🚨", color=0xFF0000)
-            embed_advertencia.add_field(name="Quem aplicou", value=autor, inline=False)
-            embed_advertencia.add_field(name="Advertido", value=membro.mention, inline=False)
-            embed_advertencia.add_field(name="Nome", value=membro.display_name, inline=False)
-            embed_advertencia.add_field(name="Tipo de Advertência", value=", ".join(cargos_atuais), inline=False)
+            embed_advertencia.add_field(name="Quem aplicou", value=x_autor, inline=False)
+            embed_advertencia.add_field(name="Advertido", value=x_membro.mention, inline=False)
+            embed_advertencia.add_field(name="Nome", value=x_membro.display_name, inline=False)
+            embed_advertencia.add_field(name="Tipo de Advertência", value=", ".join(x_cargos_atuais), inline=False)
             embed_advertencia.add_field(name="Motivo", value=motivo, inline=False)
 
             # Enviar log individual para o canal de advertências
-            await canal_log.send(embed=embed_advertencia)
+            await x_canal_log.send(embed=embed_advertencia)
 
             # Enviar DM para o usuário advertido
             try:
-                await membro.send(embed=embed_advertencia)
+                await x_membro.send(embed=embed_advertencia)
             except discord.Forbidden:
-                print(f"Não foi possível enviar mensagem para {membro.display_name} ({membro.id}) no privado.")
+                print(f"Não foi possível enviar mensagem para {x_membro.display_name} ({x_membro.id}) no privado.")
 
         await interaction.response.send_message("Advertência(s) aplicada(s) com sucesso!", ephemeral=True)
 
