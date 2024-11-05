@@ -1116,9 +1116,6 @@ async def on_ready():
     # Sincronizar os comandos do bot
     await bot.tree.sync()
 
-    # Carregar dados de arquivo
-    carregar_dados_de_arquivo()
-
         # Criar um dicionário de membros por ID ~~RANKING mensal
     global membros_por_id1
     membros_por_id1 = {membro.id: membro for membro in bot.get_all_members()}
