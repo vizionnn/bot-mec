@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands, tasks
-from discord import app_commands
+from discord import Embed, app_commands
 from discord.ui import Button, View, Select, Modal, TextInput
 from discord.utils import get
 import logging
@@ -15,6 +15,7 @@ from discord.ext import commands
 from discord.ext.commands import CooldownMapping, BucketType
 import time
 from datetime import datetime, timezone, timedelta
+from typing import List
 
 # Configurações dos intents
 intents = discord.Intents.all()
@@ -158,58 +159,62 @@ CANAL_LOG_ADVERTENCIA_ID_X = 1303200083772440577
 
 # Comando /adv
 @bot.tree.command(name="adv", description="Adicionar advertência(s) a um ou mais usuários.")
-@app_commands.describe(ids="IDs dos usuários, separados por vírgula", advs="Tipos de advertência, separados por vírgula", motivo="Motivo da advertência")
-@app_commands.checks.has_any_role(cargo_visualizacao_1_id, cargo_visualizacao_2_id)
+@app_commands.describe(
+    ids="IDs dos usuários, separados por vírgula", 
+    advs="Tipos de advertência (ex.: adv1, devedor adv, devedor manutenção)"
+)
+@app_commands.checks.has_any_role(cargo_visualizacao_1_id, cargo_visualizacao_2_id)  # IDs de cargos autorizados
 async def adv(interaction: discord.Interaction, ids: str, advs: str, motivo: str):
     try:
-        # Convertendo os IDs e tipos de advertência para listas
-        x_ids = [int(id.strip()) for id in ids.split(",")]
-        x_advs = [adv.strip().lower() for adv in advs.split(",")]
+        # Converter IDs e tipos de advertência em listas
+        ids = [int(id.strip()) for id in ids.split(",")]
+        advs = [adv.strip().lower() for adv in advs.split(",")]
 
-        x_guild = interaction.guild
-        x_autor = interaction.user.mention  # Quem aplicou a advertência
+        guild = interaction.guild
+        autor = interaction.user.mention  # Quem aplicou a advertência
 
-        # Validar os tipos de advertência fornecidos
-        x_cargos_adicionar = [CARGOS_ADVERTENCIA_X[adv] for adv in x_advs if adv in CARGOS_ADVERTENCIA_X]
+        # Validar tipos de advertência fornecidos
+        cargos_adicionar = [CARGOS_ADVERTENCIA[adv] for adv in advs if adv in CARGOS_ADVERTENCIA]
         
-        if not x_cargos_adicionar:
+        if not cargos_adicionar:
             await interaction.response.send_message("Nenhum tipo de advertência válido foi especificado.", ephemeral=True)
             return
 
         # Canal de log
-        x_canal_log = x_guild.get_channel(CANAL_LOG_ADVERTENCIA_ID_X)
+        canal_log = guild.get_channel(CANAL_LOG_ADVERTENCIA_ID)
 
         # Processar cada ID de usuário
-        for x_id_usuario in x_ids:
-            x_membro = x_guild.get_member(x_id_usuario)
-            if not x_membro:
-                await interaction.response.send_message(f"Usuário com ID {x_id_usuario} não encontrado.", ephemeral=True)
+        for id_usuario in ids:
+            membro = guild.get_member(id_usuario)
+            if not membro:
+                await interaction.response.send_message(f"Usuário com ID {id_usuario} não encontrado.", ephemeral=True)
                 continue
 
             # Adicionar os cargos de advertência
-            x_cargos_atuais = []
-            for x_cargo_id in x_cargos_adicionar:
-                x_cargo = x_guild.get_role(x_cargo_id)
-                if x_cargo:
-                    await x_membro.add_roles(x_cargo)
-                    x_cargos_atuais.append(x_cargo.name)
+            cargos_atuais = []
+            for cargo_id in cargos_adicionar:
+                cargo = guild.get_role(cargo_id)
+                if cargo:
+                    await membro.add_roles(cargo)
+                    cargos_atuais.append(cargo.name)
 
-            # Criar o embed de advertência individual
+            # Criar embed de log e enviar para o canal de log
             embed_advertencia = Embed(title="Advertência 🚨", color=0xFF0000)
-            embed_advertencia.add_field(name="Quem aplicou", value=x_autor, inline=False)
-            embed_advertencia.add_field(name="Advertido", value=x_membro.mention, inline=False)
-            embed_advertencia.add_field(name="Nome", value=x_membro.display_name, inline=False)
-            embed_advertencia.add_field(name="Tipo de Advertência", value=", ".join(x_cargos_atuais), inline=False)
+            embed_advertencia.add_field(name="Quem aplicou", value=autor, inline=False)
+            embed_advertencia.add_field(name="Advertido", value=membro.mention, inline=False)
+            embed_advertencia.add_field(name="Nome", value=membro.display_name, inline=False)
+            embed_advertencia.add_field(name="Tipo de Advertência", value=", ".join(cargos_atuais), inline=False)
             embed_advertencia.add_field(name="Motivo", value=motivo, inline=False)
 
-            # Enviar log individual para o canal de advertências
-            await x_canal_log.send(embed=embed_advertencia)
-
-            # Enviar DM para o usuário advertido
+            # Enviar log para o canal de advertências
+            if canal_log:
+                await canal_log.send(embed=embed_advertencia)
+            
+            # Enviar mensagem privada para o usuário advertido
             try:
-                await x_membro.send(embed=embed_advertencia)
+                await membro.send(embed=embed_advertencia)
             except discord.Forbidden:
-                print(f"Não foi possível enviar mensagem para {x_membro.display_name} ({x_membro.id}) no privado.")
+                print(f"Não foi possível enviar mensagem para {membro.display_name} ({membro.id}) no privado.")
 
         await interaction.response.send_message("Advertência(s) aplicada(s) com sucesso!", ephemeral=True)
 
@@ -224,17 +229,6 @@ async def adv_error(interaction: discord.Interaction, error):
     else:
         await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
         print(f"Erro no comando /adv: {error}")
-
-async def has_allowed_role(interaction: discord.Interaction):
-    # Lista de IDs dos cargos permitidos
-    allowed_roles = [1235035964556972099, 1235035964556972095]
-
-    # Verifica se o usuário tem algum dos cargos permitidos
-    for role in interaction.user.roles:
-        if role.id in allowed_roles:
-            return True
-    
-    return False
 
 @bot.tree.command(name="consultarelat", description="Consulta relatórios de um usuário em um período.")
 @app_commands.describe(user="Usuário a ser consultado", data_inicio="Data de início (DD/MM/YYYY)", data_fim="Data de fim (DD/MM/YYYY)")
