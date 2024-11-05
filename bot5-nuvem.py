@@ -15,6 +15,7 @@ from discord.ext import commands
 from discord.ext.commands import CooldownMapping, BucketType
 import time
 from datetime import datetime, timezone, timedelta
+from typing import List
 
 # Configurações dos intents
 intents = discord.Intents.all()
@@ -137,6 +138,21 @@ CARGO_IDS = {
 
 # ID do canal "devedores"
 CANAL_DEVEDORES_ID = 1255178131707265066
+
+# IDs dos cargos de advertência
+CARGOS_ADVERTENCIA = {
+    "devedor adv": 1255196379609825350,
+    "devedor manutenção": 1255196288698552321,
+    "adv4": 1255195989778628739,
+    "adv3": 1235035964573880390,
+    "adv2": 1235035964556972101,
+    "adv1": 1235035964556972100,
+    "adv verbal": 1235035964556972098,
+    "rebaixado": 1235035964556972097
+}
+
+# ID do canal de log de advertências
+CANAL_LOG_ADVERTENCIA_ID = 1303200083772440577
 
 #_______________________________________________________________________________
 
@@ -638,12 +654,74 @@ async def exonerar_error(interaction: discord.Interaction, error):
         await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
         print(f"Erro no comando /exonerar: {error}")
 
+# Comando /adv
+@bot.tree.command(name="adv", description="Adicionar advertência(s) a um ou mais usuários.")
+@app_commands.describe(ids="IDs dos usuários, separados por vírgula", advs="Tipos de advertência, separados por vírgula")
+@app_commands.checks.has_any_role(cargo_visualizacao_1_id, cargo_visualizacao_2_id)  # Substitua com os IDs corretos dos cargos que podem usar o comando
+async def adv(interaction: discord.Interaction, ids: str, advs: str):
+    try:
+        # Convertendo os IDs e tipos de advertência para listas
+        ids = [int(id.strip()) for id in ids.split(",")]
+        advs = [adv.strip().lower() for adv in advs.split(",")]
+
+        guild = interaction.guild
+        autor = interaction.user.mention  # Quem aplicou a advertência
+
+        # Validar os tipos de advertência fornecidos
+        cargos_adicionar = [CARGOS_ADVERTENCIA[adv] for adv in advs if adv in CARGOS_ADVERTENCIA]
+        
+        if not cargos_adicionar:
+            await interaction.response.send_message("Nenhum tipo de advertência válido foi especificado.", ephemeral=True)
+            return
+
+        # Canal de log
+        canal_log = guild.get_channel(CANAL_LOG_ADVERTENCIA_ID)
+
+        # Processar cada ID de usuário
+        for id_usuario in ids:
+            membro = guild.get_member(id_usuario)
+            if not membro:
+                await interaction.response.send_message(f"Usuário com ID {id_usuario} não encontrado.", ephemeral=True)
+                continue
+
+            # Adicionar os cargos de advertência
+            cargos_atuais = []
+            for cargo_id in cargos_adicionar:
+                cargo = guild.get_role(cargo_id)
+                if cargo:
+                    await membro.add_roles(cargo)
+                    cargos_atuais.append(cargo.name)
+
+            # Criar o embed de log
+            embed_advertencia = Embed(title="Advertência 🚨", color=0xFF0000)
+            embed_advertencia.add_field(name="Quem aplicou", value=autor, inline=False)
+            embed_advertencia.add_field(name="Advertido", value=membro.mention, inline=False)
+            embed_advertencia.add_field(name="Nome", value=membro.display_name, inline=False)
+            embed_advertencia.add_field(name="Tipo de Advertência", value=", ".join(cargos_atuais), inline=False)
+
+            # Enviar log para o canal de advertências
+            await canal_log.send(embed=embed_advertencia)
+
+        await interaction.response.send_message("Advertência(s) aplicada(s) com sucesso!", ephemeral=True)
+
+    except Exception as e:
+        print(f"Ocorreu um erro: {e}")
+        await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
+
+@adv.error
+async def adv_error(interaction: discord.Interaction, error):
+    if isinstance(error, app_commands.MissingAnyRole):
+        await interaction.response.send_message("Você não tem permissão para usar este comando.", ephemeral=True)
+    else:
+        await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
+        print(f"Erro no comando /adv: {error}")
+
 # Fim do código dos comandos /slash
 
 
-# Questões do exame // --------------------------- FIM DOS COMANDOS /SLASH ---------------------------------
+# ------------ ------- -------- FIM DOS COMANDOS /SLASH --------- ------- ----------------
 
-#---------------------------------------------------------------PROVA--------------------------------------------------------
+# ----------- -------------- --------------PROVA------------- ----------------- ------------
 
 questoes_abertas = [
     "Por que quer ser mecânico?",
