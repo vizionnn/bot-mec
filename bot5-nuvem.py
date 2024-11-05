@@ -139,7 +139,8 @@ CARGO_IDS = {
 # ID do canal "devedores"
 CANAL_DEVEDORES_ID = 1255178131707265066
 
-CARGOS_ADVERTENCIA_X = {
+# IDs dos cargos de advertência
+CARGOS_ADVERTENCIA = {
     "devedor adv": 1255196379609825350,
     "devedor manutenção": 1255196288698552321,
     "adv4": 1255195989778628739,
@@ -151,7 +152,7 @@ CARGOS_ADVERTENCIA_X = {
 }
 
 # ID do canal de log de advertências
-CANAL_LOG_ADVERTENCIA_ID_X = 1303200083772440577
+CANAL_LOG_ADVERTENCIA_ID = 1303200083772440577
 
 #_______________________________________________________________________________
 
@@ -161,19 +162,20 @@ CANAL_LOG_ADVERTENCIA_ID_X = 1303200083772440577
 @bot.tree.command(name="adv", description="Adicionar advertência(s) a um ou mais usuários.")
 @app_commands.describe(
     ids="IDs dos usuários, separados por vírgula", 
-    advs="Tipos de advertência (ex.: adv1, devedor adv, devedor manutenção)"
+    advs="Tipos de advertência (ex.: adv1, devedor adv, devedor manutenção)", 
+    motivo="Motivo da advertência"
 )
 @app_commands.checks.has_any_role(cargo_visualizacao_1_id, cargo_visualizacao_2_id)  # IDs de cargos autorizados
 async def adv(interaction: discord.Interaction, ids: str, advs: str, motivo: str):
     try:
-        # Converter IDs e tipos de advertência em listas
+        # Convertendo IDs e tipos de advertência para listas
         ids = [int(id.strip()) for id in ids.split(",")]
         advs = [adv.strip().lower() for adv in advs.split(",")]
 
         guild = interaction.guild
         autor = interaction.user.mention  # Quem aplicou a advertência
 
-        # Validar tipos de advertência fornecidos
+        # Validar os tipos de advertência fornecidos
         cargos_adicionar = [CARGOS_ADVERTENCIA[adv] for adv in advs if adv in CARGOS_ADVERTENCIA]
         
         if not cargos_adicionar:
@@ -198,7 +200,7 @@ async def adv(interaction: discord.Interaction, ids: str, advs: str, motivo: str
                     await membro.add_roles(cargo)
                     cargos_atuais.append(cargo.name)
 
-            # Criar embed de log e enviar para o canal de log
+            # Criar embed de log
             embed_advertencia = Embed(title="Advertência 🚨", color=0xFF0000)
             embed_advertencia.add_field(name="Quem aplicou", value=autor, inline=False)
             embed_advertencia.add_field(name="Advertido", value=membro.mention, inline=False)
@@ -206,11 +208,10 @@ async def adv(interaction: discord.Interaction, ids: str, advs: str, motivo: str
             embed_advertencia.add_field(name="Tipo de Advertência", value=", ".join(cargos_atuais), inline=False)
             embed_advertencia.add_field(name="Motivo", value=motivo, inline=False)
 
-            # Enviar log para o canal de advertências
+            # Enviar log para o canal de advertências e mensagem privada para o usuário advertido
             if canal_log:
                 await canal_log.send(embed=embed_advertencia)
-            
-            # Enviar mensagem privada para o usuário advertido
+
             try:
                 await membro.send(embed=embed_advertencia)
             except discord.Forbidden:
