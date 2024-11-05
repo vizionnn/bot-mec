@@ -1116,12 +1116,6 @@ async def on_ready():
     # Sincronizar os comandos do bot
     await bot.tree.sync()
 
-    # Iniciar tarefas de atualização de horas e salvamento de dados
-    if not atualizar_horas_servico.is_running():
-        atualizar_horas_servico.start()
-    if not salvar_dados.is_running():
-        salvar_dados.start()
-
     # Carregar dados de arquivo
     carregar_dados_de_arquivo()
 
