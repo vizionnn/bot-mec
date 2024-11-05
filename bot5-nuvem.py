@@ -656,9 +656,9 @@ async def exonerar_error(interaction: discord.Interaction, error):
 
 # Comando /adv
 @bot.tree.command(name="adv", description="Adicionar advertência(s) a um ou mais usuários.")
-@app_commands.describe(ids="IDs dos usuários, separados por vírgula", advs="Tipos de advertência, separados por vírgula")
+@app_commands.describe(ids="IDs dos usuários, separados por vírgula", advs="Tipos de advertência, separados por vírgula", motivo="Motivo da advertência")
 @app_commands.checks.has_any_role(cargo_visualizacao_1_id, cargo_visualizacao_2_id)  # Substitua com os IDs corretos dos cargos que podem usar o comando
-async def adv(interaction: discord.Interaction, ids: str, advs: str):
+async def adv(interaction: discord.Interaction, ids: str, advs: str, motivo: str):
     try:
         # Convertendo os IDs e tipos de advertência para listas
         ids = [int(id.strip()) for id in ids.split(",")]
@@ -692,15 +692,22 @@ async def adv(interaction: discord.Interaction, ids: str, advs: str):
                     await membro.add_roles(cargo)
                     cargos_atuais.append(cargo.name)
 
-            # Criar o embed de log
+            # Criar o embed de advertência individual
             embed_advertencia = Embed(title="Advertência 🚨", color=0xFF0000)
             embed_advertencia.add_field(name="Quem aplicou", value=autor, inline=False)
             embed_advertencia.add_field(name="Advertido", value=membro.mention, inline=False)
             embed_advertencia.add_field(name="Nome", value=membro.display_name, inline=False)
             embed_advertencia.add_field(name="Tipo de Advertência", value=", ".join(cargos_atuais), inline=False)
+            embed_advertencia.add_field(name="Motivo", value=motivo, inline=False)
 
-            # Enviar log para o canal de advertências
+            # Enviar log individual para o canal de advertências
             await canal_log.send(embed=embed_advertencia)
+
+            # Enviar DM para o usuário advertido
+            try:
+                await membro.send(embed=embed_advertencia)
+            except discord.Forbidden:
+                print(f"Não foi possível enviar mensagem para {membro.display_name} ({membro.id}) no privado.")
 
         await interaction.response.send_message("Advertência(s) aplicada(s) com sucesso!", ephemeral=True)
 
