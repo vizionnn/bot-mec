@@ -15,7 +15,6 @@ from discord.ext import commands
 from discord.ext.commands import CooldownMapping, BucketType
 import time
 from datetime import datetime, timezone, timedelta
-from typing import List
 
 # Configurações dos intents
 intents = discord.Intents.all()
@@ -642,9 +641,9 @@ async def exonerar_error(interaction: discord.Interaction, error):
 # Fim do código dos comandos /slash
 
 
-# --------- ------- -------- FIM DOS COMANDOS /SLASH ------ ------- -------------
+# Questões do exame // --------------------------- FIM DOS COMANDOS /SLASH ---------------------------------
 
-# ------------------- --------------PROVA------------- -----------------------------
+#---------------------------------------------------------------PROVA--------------------------------------------------------
 
 questoes_abertas = [
     "Por que quer ser mecânico?",
