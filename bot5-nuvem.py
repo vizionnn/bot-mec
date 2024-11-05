@@ -138,12 +138,92 @@ CARGO_IDS = {
 # ID do canal "devedores"
 CANAL_DEVEDORES_ID = 1255178131707265066
 
+CARGOS_ADVERTENCIA_X = {
+    "devedor adv": 1255196379609825350,
+    "devedor manutenção": 1255196288698552321,
+    "adv4": 1255195989778628739,
+    "adv3": 1235035964573880390,
+    "adv2": 1235035964556972101,
+    "adv1": 1235035964556972100,
+    "adv verbal": 1235035964556972098,
+    "rebaixado": 1235035964556972097
+}
+
+# ID do canal de log de advertências
+CANAL_LOG_ADVERTENCIA_ID_X = 1303200083772440577
+
 #_______________________________________________________________________________
 
 # fim variáveis, inicio bot de comandos
 
-# ID do canal de consulta
-consultar_horas_id = 1246990807140007997
+# Comando /adv
+@bot.tree.command(name="adv", description="Adicionar advertência(s) a um ou mais usuários.")
+@app_commands.describe(ids="IDs dos usuários, separados por vírgula", advs="Tipos de advertência, separados por vírgula", motivo="Motivo da advertência")
+@app_commands.checks.has_any_role(cargo_visualizacao_1_id, cargo_visualizacao_2_id)
+async def adv(interaction: discord.Interaction, ids: str, advs: str, motivo: str):
+    try:
+        # Convertendo os IDs e tipos de advertência para listas
+        x_ids = [int(id.strip()) for id in ids.split(",")]
+        x_advs = [adv.strip().lower() for adv in advs.split(",")]
+
+        x_guild = interaction.guild
+        x_autor = interaction.user.mention  # Quem aplicou a advertência
+
+        # Validar os tipos de advertência fornecidos
+        x_cargos_adicionar = [CARGOS_ADVERTENCIA_X[adv] for adv in x_advs if adv in CARGOS_ADVERTENCIA_X]
+        
+        if not x_cargos_adicionar:
+            await interaction.response.send_message("Nenhum tipo de advertência válido foi especificado.", ephemeral=True)
+            return
+
+        # Canal de log
+        x_canal_log = x_guild.get_channel(CANAL_LOG_ADVERTENCIA_ID_X)
+
+        # Processar cada ID de usuário
+        for x_id_usuario in x_ids:
+            x_membro = x_guild.get_member(x_id_usuario)
+            if not x_membro:
+                await interaction.response.send_message(f"Usuário com ID {x_id_usuario} não encontrado.", ephemeral=True)
+                continue
+
+            # Adicionar os cargos de advertência
+            x_cargos_atuais = []
+            for x_cargo_id in x_cargos_adicionar:
+                x_cargo = x_guild.get_role(x_cargo_id)
+                if x_cargo:
+                    await x_membro.add_roles(x_cargo)
+                    x_cargos_atuais.append(x_cargo.name)
+
+            # Criar o embed de advertência individual
+            embed_advertencia = Embed(title="Advertência 🚨", color=0xFF0000)
+            embed_advertencia.add_field(name="Quem aplicou", value=x_autor, inline=False)
+            embed_advertencia.add_field(name="Advertido", value=x_membro.mention, inline=False)
+            embed_advertencia.add_field(name="Nome", value=x_membro.display_name, inline=False)
+            embed_advertencia.add_field(name="Tipo de Advertência", value=", ".join(x_cargos_atuais), inline=False)
+            embed_advertencia.add_field(name="Motivo", value=motivo, inline=False)
+
+            # Enviar log individual para o canal de advertências
+            await x_canal_log.send(embed=embed_advertencia)
+
+            # Enviar DM para o usuário advertido
+            try:
+                await x_membro.send(embed=embed_advertencia)
+            except discord.Forbidden:
+                print(f"Não foi possível enviar mensagem para {x_membro.display_name} ({x_membro.id}) no privado.")
+
+        await interaction.response.send_message("Advertência(s) aplicada(s) com sucesso!", ephemeral=True)
+
+    except Exception as e:
+        print(f"Ocorreu um erro: {e}")
+        await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
+
+@adv.error
+async def adv_error(interaction: discord.Interaction, error):
+    if isinstance(error, app_commands.MissingAnyRole):
+        await interaction.response.send_message("Você não tem permissão para usar este comando.", ephemeral=True)
+    else:
+        await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
+        print(f"Erro no comando /adv: {error}")
 
 async def has_allowed_role(interaction: discord.Interaction):
     # Lista de IDs dos cargos permitidos
@@ -192,67 +272,6 @@ async def consultarelat(interaction: discord.Interaction, user: discord.User, da
             total_relatorios += 1
 
     await interaction.response.send_message(f"{user.mention} fez {total_relatorios} relatórios de {data_inicio} a {data_fim}.")
-
-
-@bot.tree.command(name="tempo", description="Consultar o tempo em serviço de um usuário pelo ID ou menção.")
-@app_commands.describe(user="ID ou menção do usuário a ser consultado")
-@app_commands.checks.has_any_role(*cargos_permitidos)
-async def tempo(interaction: discord.Interaction, user: str):
-    try:
-        if user.startswith("<@") and user.endswith(">"):
-            user_id = int(user[3:-1].replace("!", ""))
-        else:
-            user_id = int(user)
-
-        user = interaction.guild.get_member(user_id)
-        if user:
-            tempo_total = calcular_tempo_servico(user_id)
-            tempo_formatado = formatar_tempo(tempo_total)
-            await interaction.response.send_message(f'Usuário {user.mention} tem {tempo_formatado} em serviço.', ephemeral=True)
-        else:
-            await interaction.response.send_message('Usuário não encontrado.', ephemeral=True)
-    except ValueError:
-        await interaction.response.send_message('Insira um ID ou menção de usuário válido.', ephemeral=True)
-
-@tempo.error
-async def tempo_error(interaction: discord.Interaction, error):
-    if isinstance(error, app_commands.MissingAnyRole):
-        await interaction.response.send_message("Você não tem permissão para usar este comando.", ephemeral=True)
-    else:
-        await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
-        print(f"Erro no comando /tempo: {error}")
-
-tree = bot.tree
-
-# Verifica se o usuário tem um dos cargos autorizados
-def check_authorized_roles():
-    async def predicate(interaction: discord.Interaction):
-        return any(role.id in AUTHORIZED_ROLES for role in interaction.user.roles)
-    return app_commands.check(predicate)
-
-#   Comando /mensagem
-@tree.command(name="mensagem", description="Enviar mensagem privada para todos os membros de um cargo.")
-@app_commands.describe(cargo="Cargo alvo", mensagem="Mensagem a ser enviada")
-@check_authorized_roles()
-async def mensagem(interaction: discord.Interaction, cargo: discord.Role, mensagem: str):
-    log_channel = bot.get_channel(LOG_CHANNEL_ID)
-    await interaction.response.send_message(f'Enviando mensagens para todos os membros com o cargo {cargo.mention}.', ephemeral=True)
-    for member in cargo.members:
-        try:
-            await member.send(mensagem)
-        except discord.Forbidden:
-            await log_channel.send(f'Não foi possível enviar a mensagem para {member.mention}.')
-    await log_channel.send(
-        f'Usuário {interaction.user.mention} enviou a seguinte mensagem para o cargo {cargo.mention}:\n```\n{mensagem}\n```'
-    )
-
-@mensagem.error
-async def mensagem_error(interaction: discord.Interaction, error):
-    if isinstance(error, app_commands.MissingPermissions):
-        await interaction.response.send_message("Você não tem permissão para usar este comando.", ephemeral=True)
-    else:
-        await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
-        print(f"Erro no comando /mensagem: {error}")
 
 #   comando /dm
 @tree.command(name="dm", description="Enviar mensagem privada para um usuário específico.")
@@ -976,163 +995,6 @@ async def on_member_remove(member):
     if channel:
         await channel.send(embed=embed)
 
-    #~~~~~~~~~~~~~~~~~~~~---------------------------BOT DE HORAS-----------------------------~~~~~~~~~~~~~~~~~~~~
-
-def create_table():
-    conn = sqlite3.connect('horas_servico.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS horas_servico (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    user_name TEXT,
-                    canal_id INTEGER,
-                    tempo_servico INTEGER,
-                    data_inicio TIMESTAMP,
-                    data_fim TIMESTAMP)''')
-    conn.commit()
-    conn.close()
-
-def salvar_dados_em_arquivo():
-    conn = sqlite3.connect('horas_servico.db')
-    c = conn.cursor()
-    c.execute('SELECT * FROM horas_servico')
-    registros = c.fetchall()
-    conn.close()
-
-    with open('backup_horas_servico.json', 'w') as f:
-        json.dump(registros, f)
-
-@tasks.loop(minutes=1)
-async def atualizar_horas_servico():
-    conn = sqlite3.connect('horas_servico.db')
-    c = conn.cursor()
-    for guild in bot.guilds:
-        for canal_id in canais_voz_ids:
-            canal = guild.get_channel(canal_id)
-            if canal:
-                for membro in canal.members:
-                    c.execute('SELECT * FROM horas_servico WHERE user_id=? AND canal_id=? AND data_fim IS NULL', (membro.id, canal_id))
-                    registro = c.fetchone()
-                    if registro:
-                        tempo_servico = int((datetime.now(timezone.utc) - datetime.fromisoformat(registro[5]).replace(tzinfo=timezone.utc)).total_seconds())
-                        c.execute('UPDATE horas_servico SET tempo_servico=? WHERE id=?', (tempo_servico, registro[0]))
-                    else:
-                        c.execute('INSERT INTO horas_servico (user_id, user_name, canal_id, tempo_servico, data_inicio) VALUES (?, ?, ?, ?, ?)', 
-                                  (membro.id, str(membro), canal_id, 0, datetime.now(timezone.utc).isoformat()))
-                    conn.commit()
-    conn.close()
-
-def calcular_tempo_servico(user_id):
-    conn = sqlite3.connect('horas_servico.db')
-    c = conn.cursor()
-    c.execute('SELECT SUM(tempo_servico) FROM horas_servico WHERE user_id=?', (user_id,))
-    tempo_total = c.fetchone()[0]
-    conn.close()
-    return tempo_total if tempo_total else 0
-
-def calcular_posicao_ranking(user_id):
-    conn = sqlite3.connect('horas_servico.db')
-    c = conn.cursor()
-    c.execute('SELECT user_id, SUM(tempo_servico) as total_tempo FROM horas_servico GROUP BY user_id ORDER BY total_tempo DESC')
-    ranking = c.fetchall()
-    conn.close()
-    for posicao, (id_usuario, tempo_total) in enumerate(ranking, start=1):
-        if id_usuario == user_id:
-            return posicao
-    return None
-
-def formatar_tempo(segundos):
-    horas = segundos // 3600
-    minutos = (segundos % 3600) // 60
-    segundos = segundos % 60
-    return f"{horas}h {minutos}m {segundos}s"
-
-# Botões de consulta de horas e ranking
-class ConsultaView(View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="⏰ CONSULTAR HORAS", style=discord.ButtonStyle.primary)
-    async def consultar_horas(self, interaction: discord.Interaction, button: Button):
-        user_id = interaction.user.id
-        tempo_total = calcular_tempo_servico(user_id)
-        ranking = calcular_posicao_ranking(user_id)
-        tempo_formatado = formatar_tempo(tempo_total)
-
-        embed = discord.Embed(title="⏰ | Consulta horas - 🛠️・Benny's - Originals", color=discord.Color.orange())
-        embed.description = (
-            f"🪪 **Usuário:** {interaction.user.mention}\n"
-            f"⏰ **Tempo Total:** `{tempo_formatado}`\n"
-            f"🔌 **Conectado Agora:** {'`Sim`' if interaction.user.voice else '`Não Conectado!`'}\n"
-            f"📊 **Posição no ranking:** {'`#`' + str(ranking) if ranking else '`N/A`'}\n\n"
-        )
-        embed.set_footer(text="© Copyright |🛠・Benny's - Originals")
-
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @discord.ui.button(label="📊 CONSULTAR RANKING", style=discord.ButtonStyle.primary)
-    async def consultar_ranking(self, interaction: discord.Interaction, button: Button):
-        conn = sqlite3.connect('horas_servico.db')
-        c = conn.cursor()
-        c.execute('SELECT user_id, SUM(tempo_servico) as total_tempo FROM horas_servico GROUP BY user_id ORDER BY total_tempo DESC LIMIT 15')
-        top_15 = c.fetchall()
-        conn.close()
-
-        ranking_str = "⏰ | Rank Top 15 - 🛠️・Benny's - Originals\n\n"
-        for idx, (user_id, tempo_total) in enumerate(top_15, start=1):
-            user = interaction.guild.get_member(user_id)
-            tempo_formatado = formatar_tempo(tempo_total)
-            ranking_str += f"`{idx}`. {user.mention}: **{tempo_formatado}**\n"
-
-        embed = discord.Embed(description=ranking_str, color=discord.Color.orange())
-        embed.set_footer(text="© Copyright |🛠・Benny's - Originals")
-
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
-async def buscar_mensagem_consulta(canal):
-    async for mensagem in canal.history(limit=100):
-        if mensagem.author == bot.user and "Consulta horas" in mensagem.embeds[0].title:
-            return mensagem
-    return None
-
-# Início da mensagem de consulta
-async def enviar_mensagem_consulta():
-    channel = bot.get_channel(consultar_horas_id)
-    embed = discord.Embed(title="⏰ | Consulta horas - 🛠️・Benny's - Originals", color=discord.Color.orange())
-    embed.description = (
-        "Para consultar as horas basta clicar no botão abaixo \"CONSULTAR HORAS\".\n\n"
-        "⏰ **Consulta** horas Totais.\n"
-        "📊 **Consulta** sua posição no ranking.\n"
-        "📊 **Consulta** Top 15 em horas.\n\n"
-    )
-    embed.set_footer(text="© Copyright |🛠・Benny's - Originals")
-
-    view = ConsultaView()
-
-    # Buscar a mensagem existente ou enviar uma nova
-    mensagem_consulta = await buscar_mensagem_consulta(channel)
-    if mensagem_consulta:
-        await mensagem_consulta.edit(embed=embed, view=view)
-    else:
-        await channel.send(embed=embed, view=view)
-
-@tasks.loop(minutes=10)
-async def salvar_dados():
-    salvar_dados_em_arquivo()
-
-def carregar_dados_de_arquivo():
-    try:
-        with open('backup_horas_servico.json', 'r') as f:
-            registros = json.load(f)
-
-        conn = sqlite3.connect('horas_servico.db')
-        c = conn.cursor()
-        c.executemany('INSERT OR REPLACE INTO horas_servico VALUES (?, ?, ?, ?, ?, ?, ?)', registros)
-        conn.commit()
-        conn.close()
-    except FileNotFoundError:
-        print("Nenhum backup encontrado. Iniciando sem dados de backup.")
-
 # Função para buscar a mensagem de hierarquia existente no canal
 async def buscar_mensagem_hierarquia(channel):
     async for mensagem in channel.history(limit=100):
@@ -1243,14 +1105,8 @@ async def on_ready():
     guild = bot.guilds[0]  # Supondo que o bot esteja em um único servidor
     await atualizar_hierarquia(guild)
 
-    # Criar a tabela no banco de dados
-    create_table()
-
     # Sincronizar os comandos do bot
     await bot.tree.sync()
-
-    # Enviar a mensagem inicial de consulta de horas
-    await enviar_mensagem_consulta()
 
     # Iniciar tarefas de atualização de horas e salvamento de dados
     if not atualizar_horas_servico.is_running():
