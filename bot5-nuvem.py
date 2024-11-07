@@ -308,7 +308,7 @@ async def mensagem_error(interaction: discord.Interaction, error):
 # Comando /dm
 @bot.tree.command(name="dm", description="Enviar mensagem privada para um usuário específico.")
 @app_commands.describe(user="Usuário alvo", mensagem="Mensagem a ser enviada")
-@check_authorized_roles()
+@verificar_cargos_autorizados()
 async def dm(interaction: discord.Interaction, user: discord.User, mensagem: str):
     log_channel = bot.get_channel(LOG_CHANNEL_ID)
     try:
