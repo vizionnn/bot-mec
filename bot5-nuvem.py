@@ -142,7 +142,7 @@ CANAL_DEVEDORES_ID = 1255178131707265066
 # IDs dos cargos de advertência
 CARGOS_ADVERTENCIA = {
     "devedor adv": 1255196379609825350,
-    "devedor manutenção": 1255196288698552321,
+    "devedor man": 1255196288698552321,
     "adv4": 1255195989778628739,
     "adv3": 1235035964573880390,
     "adv2": 1235035964556972101,
@@ -231,6 +231,7 @@ async def adv_error(interaction: discord.Interaction, error):
         await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
         print(f"Erro no comando /adv: {error}")
 
+#consultarelat
 @bot.tree.command(name="consultarelat", description="Consulta relatórios de um usuário em um período.")
 @app_commands.describe(user="Usuário a ser consultado", data_inicio="Data de início (DD/MM/YYYY)", data_fim="Data de fim (DD/MM/YYYY)")
 async def consultarelat(interaction: discord.Interaction, user: discord.User, data_inicio: str, data_fim: str):
@@ -273,6 +274,29 @@ def check_authorized_roles():
     async def predicate(interaction: discord.Interaction):
         return any(role.id in [123456, 654321] for role in interaction.user.roles)  # IDs de cargos autorizados
     return app_commands.check(predicate)
+
+#   Comando /mensagem
+@tree.command(name="mensagem", description="Enviar mensagem privada para todos os membros de um cargo.")
+@app_commands.describe(cargo="Cargo alvo", mensagem="Mensagem a ser enviada")
+@check_authorized_roles()
+async def mensagem(interaction: discord.Interaction, cargo: discord.Role, mensagem: str):
+    log_channel = bot.get_channel(LOG_CHANNEL_ID)
+    await interaction.response.send_message(f'Enviando mensagens para todos os membros com o cargo {cargo.mention}.', ephemeral=True)
+    for member in cargo.members:
+        try:
+            await member.send(mensagem)
+        except discord.Forbidden:
+            await log_channel.send(f'Não foi possível enviar a mensagem para {member.mention}.')
+    await log_channel.send(
+        f'Usuário {interaction.user.mention} enviou a seguinte mensagem para o cargo {cargo.mention}:\n```\n{mensagem}\n```'
+    )
+@mensagem.error
+async def mensagem_error(interaction: discord.Interaction, error):
+    if isinstance(error, app_commands.MissingPermissions):
+        await interaction.response.send_message("Você não tem permissão para usar este comando.", ephemeral=True)
+    else:
+        await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
+        print(f"Erro no comando /mensagem: {error}")
 
 # Comando /dm
 @bot.tree.command(name="dm", description="Enviar mensagem privada para um usuário específico.")
