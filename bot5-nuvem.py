@@ -275,6 +275,12 @@ def check_authorized_roles():
         return any(role.id in [123456, 654321] for role in interaction.user.roles)  # IDs de cargos autorizados
     return app_commands.check(predicate)
 
+# Função para checar se o usuário possui um dos cargos permitidos
+def check_authorized_roles():
+    def predicate(interaction: discord.Interaction):
+        return any(role.id in [cargo_id1, cargo_id2] for role in interaction.user.roles)  # Substitua pelos IDs dos cargos permitidos
+    return app_commands.check(predicate)
+
 # Comando /mensagem
 @bot.tree.command(name="mensagem", description="Enviar mensagem privada para todos os membros de um cargo.")
 @app_commands.describe(cargo="Cargo alvo", mensagem="Mensagem a ser enviada")
