@@ -21,9 +21,10 @@ from typing import List
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-#comandos dm e message
-AUTHORIZED_ROLES = [1235035964556972095, 1235035964556972099]
-LOG_CHANNEL_ID = 1249235583637651507
+# IDs dos cargos autorizados para executar o comando
+CARGOS_AUTORIZADOS = [1235035964556972095, 1235035964556972099]  # Substituir pelos IDs reais
+# ID do canal de log onde será registrado o uso do comando
+LOG_CHANNEL_ID = 1249235583637651507  # Substitua pelo ID real do canal de log
 
 # IDs do canal de provas e do canal de correção de provas
 canal_prova_aluno_id = 1235035966876549126
@@ -269,47 +270,41 @@ async def consultarelat(interaction: discord.Interaction, user: discord.User, da
 
     await interaction.response.send_message(f"{user.mention} fez {total_relatorios} relatórios de {data_inicio} a {data_fim}.")
 
-# Função de verificação de autorização
-def check_authorized_roles():
+# Função de verificação para cargos autorizados
+def verificar_cargos_autorizados():
     async def predicate(interaction: discord.Interaction):
-        return any(role.id in [123456, 654321] for role in interaction.user.roles)  # IDs de cargos autorizados
-    return app_commands.check(predicate)
-
-# Função para checar se o usuário possui um dos cargos permitidos
-def check_authorized_roles():
-    def predicate(interaction: discord.Interaction):
-        return any(role.id in [cargo_id1, cargo_id2] for role in interaction.user.roles)  # Substitua pelos IDs dos cargos permitidos
+        return any(role.id in CARGOS_AUTORIZADOS for role in interaction.user.roles)
     return app_commands.check(predicate)
 
 # Comando /mensagem
 @bot.tree.command(name="mensagem", description="Enviar mensagem privada para todos os membros de um cargo.")
 @app_commands.describe(cargo="Cargo alvo", mensagem="Mensagem a ser enviada")
-@check_authorized_roles()
+@verificar_cargos_autorizados()
 async def mensagem(interaction: discord.Interaction, cargo: discord.Role, mensagem: str):
     log_channel = bot.get_channel(LOG_CHANNEL_ID)
     await interaction.response.send_message(f'Enviando mensagens para todos os membros com o cargo {cargo.mention}.', ephemeral=True)
     
-    # Enviar a mensagem privada para cada membro com o cargo
     for member in cargo.members:
         try:
             await member.send(mensagem)
         except discord.Forbidden:
-            await log_channel.send(f'Não foi possível enviar a mensagem para {member.mention}.')
-    
-    # Registrar o log no canal
-    await log_channel.send(
-        f'Usuário {interaction.user.mention} enviou a seguinte mensagem para o cargo {cargo.mention}:\n```\n{mensagem}\n```'
-    )
+            if log_channel:
+                await log_channel.send(f'Não foi possível enviar a mensagem para {member.mention}.')
 
-# Tratamento de erros específico para o comando /mensagem
+    # Log da mensagem enviada no canal de log
+    if log_channel:
+        await log_channel.send(
+            f'Usuário {interaction.user.mention} enviou a seguinte mensagem para o cargo {cargo.mention}:\n```\n{mensagem}\n```'
+        )
+
+# Tratamento de erros para o comando /mensagem
 @mensagem.error
 async def mensagem_error(interaction: discord.Interaction, error):
-    if isinstance(error, app_commands.MissingPermissions):
+    if isinstance(error, app_commands.MissingAnyRole):
         await interaction.response.send_message("Você não tem permissão para usar este comando.", ephemeral=True)
     else:
         await interaction.response.send_message("Ocorreu um erro ao tentar executar este comando.", ephemeral=True)
         print(f"Erro no comando /mensagem: {error}")
-
 # Comando /dm
 @bot.tree.command(name="dm", description="Enviar mensagem privada para um usuário específico.")
 @app_commands.describe(user="Usuário alvo", mensagem="Mensagem a ser enviada")
